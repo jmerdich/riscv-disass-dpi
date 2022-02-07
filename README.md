@@ -52,7 +52,7 @@ The goal is to disassemble any single instruction. Things that read multiple
 instructions (including some psuedoinstructions!) are explicitly out of scope,
 as are anything that requires reasoning about the program as a whole.
 
-### How do I use this in <some software>?
+### How do I use this in (some-simulator)?
 
 Check our docs. If it's not there, chances are, I don't know! Especially for
 commercial sims. But file an issue anyways and if I find some info or someone
