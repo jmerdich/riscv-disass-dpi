@@ -6,7 +6,7 @@
     ASSERT_STREQ(rv_disass(inst), disass)
 
 TEST(Rv32Basic, Core) {
-    ASSERT_DISASS(0x00000093, "addi x1, x0, 0");
+    ASSERT_DISASS(0x00000093, "addi    x1, x0, 0");
 }
 
 int main(int argc, char **argv) {
