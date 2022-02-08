@@ -9,11 +9,15 @@
 
 enum InstLayout {
     InstLayout_R,
+    InstLayout_R_shamt5,
+    InstLayout_R_shamt6,
     InstLayout_I,
+    InstLayout_I_fence,
     InstLayout_S,
     InstLayout_B,
     InstLayout_U,
     InstLayout_J,
+    InstLayout_None,
 };
 
 #define SHIFT_OP  0
@@ -45,6 +49,8 @@ enum InstLayout {
 #define DEC_RS2(x) (((x) & MASK_RS2) >> SHIFT_RS2)
 #define DEC_I12(x)  (((x) & MASK_I12) >> SHIFT_I12)
 
+#define MAKE_SEXT_BITS(inst, bits) (((int32_t)((inst) & 0x80000000)) >> (32 - bits))
+
 
 struct OpInfo {
     const char* name;
@@ -54,11 +60,53 @@ struct OpInfo {
     void*       pseudoInsts;
 };
 
-const OpInfo UncompressedInsts[] = {
-    {"addi", ENC_F3(0b000) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr}
+extern const OpInfo UncompressedInsts[] = {
+    // =========================================
+    // RV32I Base Instruction Set
+    {"lui",                   ENC_OP(0b0110111),           MASK_OP, InstLayout_U, nullptr},
+    {"auipc",                 ENC_OP(0b0010111),           MASK_OP, InstLayout_U, nullptr},
+    {"jal",                   ENC_OP(0b1101111),           MASK_OP, InstLayout_J, nullptr},
+    {"jalr",  ENC_F3(0x000) | ENC_OP(0b1100111), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"beq",   ENC_F3(0x000) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
+    {"bne",   ENC_F3(0x001) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
+    {"blt",   ENC_F3(0x100) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
+    {"bge",   ENC_F3(0x101) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
+    {"bltu",  ENC_F3(0x110) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
+    {"bgeu",  ENC_F3(0x111) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
+    {"lb",    ENC_F3(0x000) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"lh",    ENC_F3(0x001) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"lw",    ENC_F3(0x010) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"lbu",   ENC_F3(0x100) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"lhu",   ENC_F3(0x101) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"sb",    ENC_F3(0x000) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, nullptr},
+    {"sh",    ENC_F3(0x001) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, nullptr},
+    {"sw",    ENC_F3(0x010) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, nullptr},
+    {"addi",  ENC_F3(0b000) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"slti",  ENC_F3(0b010) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"sltiu", ENC_F3(0b011) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"xori",  ENC_F3(0b100) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"ori",   ENC_F3(0b110) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"andi",  ENC_F3(0b111) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    // shift insts skipped in favor of 64-bit variants
+    {"add",   ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"sub",   ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"sll",   ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"slt",   ENC_F7(0b0000000) | ENC_F3(0b010) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"sltu",  ENC_F7(0b0000000) | ENC_F3(0b011) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"xor",   ENC_F7(0b0000000) | ENC_F3(0b100) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"srl",   ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"sra",   ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"or",    ENC_F7(0b0000000) | ENC_F3(0b110) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"and",   ENC_F7(0b0000000) | ENC_F3(0b111) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"fence",                     ENC_F3(0b000) | ENC_OP(0b0001111),           MASK_F3 | MASK_OP, InstLayout_I_fence, nullptr},
+    {"ecall",                                           0x000000073,                    MASK_ALL, InstLayout_None, nullptr},
+    {"ebreak",                                          0x001000073,                    MASK_ALL, InstLayout_None, nullptr},
+    // =========================================
+    // RV64I Base Instruction Set
+    // ...
 };
 
-const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
+extern const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
 
 const char* get_reg_name(uint8_t reg) {
     const char* RegNames[] = {
@@ -78,7 +126,8 @@ char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t imm = DEC_I12(inst);
 
-    // TODO: sign extend immediate
+    // Do sign extension of immediate
+    imm |= MAKE_SEXT_BITS(inst, 12);
 
     int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_reg_name(rd), get_reg_name(rs1), (int32_t)imm);
     assert(size > 0 && (size_t)size < sizeof(output));
@@ -98,6 +147,7 @@ char* rv_disass(unsigned int inst) {
                     break;
                 default:
                     // not implemented :(
+                    assert(false);
                     break;
             }
             break;
