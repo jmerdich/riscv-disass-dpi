@@ -1,6 +1,9 @@
 #include "gtest/gtest.h"
 #include "test_common.h"
 
+#include <llvm-c/Disassembler.h>
+#include <llvm-c/Target.h>
+
 // Memory leaks are unimportant here.
 #define ASSERT_DISASS(inst, disass) \
     ASSERT_STREQ(rv_disass(inst), disass)
@@ -14,6 +17,74 @@ TEST(LiterallyEverything, DISABLED_DontCrash) {
     for (uint32_t inst = 0; ; inst++) {
         char* str = rv_disass(inst);
         rv_free(str);
+
+        if (inst == 0xFFFFFFFF) {
+            break;
+        }
+    }
+}
+
+LLVMDisasmContextRef GetLlvmDisassembler() {
+    LLVMInitializeAllAsmPrinters();
+    LLVMInitializeAllTargets();
+    LLVMInitializeAllTargetInfos();
+    LLVMInitializeAllTargetMCs();
+    LLVMInitializeAllDisassemblers();
+
+    LLVMDisasmContextRef ref = LLVMCreateDisasm(
+        "riscv64", // TripleName
+        NULL,
+        0,
+        NULL,
+        NULL
+    );
+    EXPECT_NE(ref, nullptr);
+    return ref;
+}
+
+std::string GetDisassFromLlvm(LLVMDisasmContextRef dis, uint32_t inst) {
+    char buffer[128] = {};
+    LLVMDisasmInstruction(dis, reinterpret_cast<uint8_t*>(&inst), sizeof(inst), 0,
+                          buffer, sizeof(buffer));
+
+    return std::string(buffer);
+}
+
+// Strips
+std::string normalize_ws(std::string input) {
+    std::string out;
+    out.reserve(input.size());
+    bool wasspace = false;
+    bool wasstart = true;
+    for (char& c : input) {
+        if (isspace(c)) {
+            wasspace = true;
+            continue;
+        }
+        if (wasspace && !wasstart) {
+            out += ' ';
+        }
+        wasspace = false;
+        wasstart = false;
+        out += c;
+    }
+    return out;
+}
+
+TEST(LiterallyEverything, DISABLED_CompareToLlvm) {
+    LLVMDisasmContextRef dis = GetLlvmDisassembler();
+    for (uint32_t inst = 0; ; inst++) {
+        char* rv_inst_raw = rv_disass(inst);
+        std::string rv_inst = normalize_ws(rv_inst_raw);
+        std::string llvm_inst = normalize_ws(GetDisassFromLlvm(dis, inst));
+
+        if (llvm_inst == "") {
+            llvm_inst = "unknown";
+        }
+
+        ASSERT_EQ(rv_inst, llvm_inst) << "when disassembling " << inst;
+
+        rv_free(rv_inst_raw);
 
         if (inst == 0xFFFFFFFF) {
             break;

@@ -1,6 +1,7 @@
 
 extern char* rv_disass(unsigned int inst);
 extern void rv_free(char* str);
+void rv_set_option(const char* name, bool enabled);
 
 
 // Implementation details
