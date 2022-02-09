@@ -73,8 +73,13 @@ std::string normalize_ws(std::string input) {
 
 bool ShouldSkip(const std::string& llvms) {
     std::string blacklist[] = {
+        // Any 64 bit insts
+        "w ",
+        // Psuedo
         "nop",
-        "sext.w"
+        "sext.w",
+        "beqz",
+        "jr ",
 
     };
     for (const auto& tv : blacklist) {
