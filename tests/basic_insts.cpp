@@ -71,7 +71,7 @@ std::string normalize_ws(std::string input) {
     return out;
 }
 
-TEST(LiterallyEverything, DISABLED_CompareToLlvm) {
+TEST(LiterallyEverything, CompareToLlvm) {
     LLVMDisasmContextRef dis = GetLlvmDisassembler();
     for (uint32_t inst = 0; ; inst++) {
         char* rv_inst_raw = rv_disass(inst);

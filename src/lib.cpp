@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -12,6 +13,7 @@ enum InstLayout {
     InstLayout_R_shamt5,
     InstLayout_R_shamt6,
     InstLayout_I,
+    InstLayout_I_load,
     InstLayout_I_fence,
     InstLayout_S,
     InstLayout_B,
@@ -73,11 +75,11 @@ extern const OpInfo UncompressedInsts[] = {
     {"bge",   ENC_F3(0x101) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
     {"bltu",  ENC_F3(0x110) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
     {"bgeu",  ENC_F3(0x111) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
-    {"lb",    ENC_F3(0x000) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"lh",    ENC_F3(0x001) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"lw",    ENC_F3(0x010) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"lbu",   ENC_F3(0x100) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"lhu",   ENC_F3(0x101) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"lb",    ENC_F3(0x000) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
+    {"lh",    ENC_F3(0x001) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
+    {"lw",    ENC_F3(0x010) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
+    {"lbu",   ENC_F3(0x100) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
+    {"lhu",   ENC_F3(0x101) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
     {"sb",    ENC_F3(0x000) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, nullptr},
     {"sh",    ENC_F3(0x001) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, nullptr},
     {"sw",    ENC_F3(0x010) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, nullptr},
@@ -119,6 +121,18 @@ const char* get_reg_name(uint8_t reg) {
     return RegNames[reg % 32];
 }
 
+const char* get_abi_name(uint8_t reg) {
+    const char* RegNames[] = {
+        "zero", "ra", "sp", "gp", "tp", "t0",  "t1",  "t2", "s0", "s1",
+          "a0", "a1", "a2", "a3", "a4", "a5",  "a6",  "a7", "s2", "s3",
+          "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4",
+          "t5", "t6"
+    };
+    // s0 = fp?
+
+    return RegNames[reg % 32];
+}
+
 char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
@@ -135,6 +149,22 @@ char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
+char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
+    char output[64] = {};
+
+    uint32_t rd = DEC_RD(inst);
+    uint32_t rs1 = DEC_RS1(inst);
+    uint32_t imm = DEC_I12(inst);
+
+    // Do sign extension of immediate
+    imm |= MAKE_SEXT_BITS(inst, 12);
+
+    int size = snprintf(output, sizeof(output), "%-7s %s, %d(%s)", info->name,  get_abi_name(rd), (int32_t)imm, get_abi_name(rs1));
+    assert(size > 0 && (size_t)size < sizeof(output));
+
+    return strdup(output);
+}
+
 char* rv_disass(unsigned int inst) {
     // Start with a naive search
     // We can choose better algorithms (bsearch, jump table) later.
@@ -145,9 +175,11 @@ char* rv_disass(unsigned int inst) {
                 case InstLayout_I:
                     return rv_disass_i(inst, info);
                     break;
+                case InstLayout_I_load:
+                    return rv_disass_i_load(inst, info);
+                    break;
                 default:
                     // not implemented :(
-                    assert(false);
                     break;
             }
             break;
