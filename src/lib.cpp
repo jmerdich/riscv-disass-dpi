@@ -165,6 +165,10 @@ char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
+char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
+    return strdup("fence unknown, unknown");
+}
+
 char* rv_disass(unsigned int inst) {
     // Start with a naive search
     // We can choose better algorithms (bsearch, jump table) later.
@@ -177,6 +181,9 @@ char* rv_disass(unsigned int inst) {
                     break;
                 case InstLayout_I_load:
                     return rv_disass_i_load(inst, info);
+                    break;
+                case InstLayout_I_fence:
+                    return rv_disass_i_fence(inst, info);
                     break;
                 default:
                     // not implemented :(
