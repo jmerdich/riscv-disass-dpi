@@ -231,6 +231,10 @@ char* rv_disass_j(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
+char* rv_disass_none(unsigned int, const OpInfo* info) {
+    return strdup(info->name);
+}
+
 char* rv_disass(unsigned int inst) {
     // Start with a naive search
     // We can choose better algorithms (bsearch, jump table) later.
@@ -258,6 +262,9 @@ char* rv_disass(unsigned int inst) {
                     break;
                 case InstLayout_J:
                     return rv_disass_j(inst, info);
+                    break;
+                case InstLayout_None:
+                    return rv_disass_none(inst, info);
                     break;
                 default:
                     // not implemented :(
