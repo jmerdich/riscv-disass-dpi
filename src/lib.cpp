@@ -25,6 +25,7 @@ enum InstLayout {
 #define SHIFT_OP  0
 #define SHIFT_RD  7
 #define SHIFT_F3  12
+#define SHIFT_I20 12
 #define SHIFT_RS1 15
 #define SHIFT_RS2 20
 #define SHIFT_I12 20
@@ -37,6 +38,7 @@ enum InstLayout {
 #define MASK_RS2  0x01F00000
 #define MASK_F7   0xFE000000
 #define MASK_I12  0xFFF00000
+#define MASK_I20  0xFFFFF000
 #define MASK_ALL  0xFFFFFFFF
 
 #define ENC_OP(x) ((x) << SHIFT_OP)
@@ -50,6 +52,7 @@ enum InstLayout {
 #define DEC_RS1(x) (((x) & MASK_RS1) >> SHIFT_RS1)
 #define DEC_RS2(x) (((x) & MASK_RS2) >> SHIFT_RS2)
 #define DEC_I12(x)  (((x) & MASK_I12) >> SHIFT_I12)
+#define DEC_I20(x)  (((x) & MASK_I20) >> SHIFT_I20)
 
 #define MAKE_SEXT_BITS(inst, bits) (((int32_t)((inst) & 0x80000000)) >> (32 - bits))
 
@@ -166,7 +169,20 @@ char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
 }
 
 char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
+    // TODO: what the heck are these arguments?
     return strdup("fence unknown, unknown");
+}
+
+char* rv_disass_u(unsigned int inst, const OpInfo* info) {
+    char output[64] = {};
+
+    uint32_t rd = DEC_RD(inst);
+    uint32_t imm = DEC_I20(inst) << 12;
+
+    int size = snprintf(output, sizeof(output), "%-7s %s, %d", info->name,  get_abi_name(rd), (int32_t)imm);
+    assert(size > 0 && (size_t)size < sizeof(output));
+
+    return strdup(output);
 }
 
 char* rv_disass(unsigned int inst) {
@@ -184,6 +200,9 @@ char* rv_disass(unsigned int inst) {
                     break;
                 case InstLayout_I_fence:
                     return rv_disass_i_fence(inst, info);
+                    break;
+                case InstLayout_U:
+                    return rv_disass_u(inst, info);
                     break;
                 default:
                     // not implemented :(

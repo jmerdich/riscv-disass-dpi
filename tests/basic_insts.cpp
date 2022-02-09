@@ -71,6 +71,20 @@ std::string normalize_ws(std::string input) {
     return out;
 }
 
+bool ShouldSkip(const std::string& llvms) {
+    std::string blacklist[] = {
+        "nop",
+        "sext.w"
+
+    };
+    for (const auto& tv : blacklist) {
+        if (llvms.find(tv) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 TEST(LiterallyEverything, CompareToLlvm) {
     LLVMDisasmContextRef dis = GetLlvmDisassembler();
     for (uint32_t inst = 0; ; inst++) {
@@ -82,7 +96,7 @@ TEST(LiterallyEverything, CompareToLlvm) {
             llvm_inst = "unknown";
         }
 
-        if (llvm_inst != "nop") {
+        if (!ShouldSkip(llvm_inst)) {
             ASSERT_EQ(rv_inst, llvm_inst) << "when disassembling " << inst;
         }
 
