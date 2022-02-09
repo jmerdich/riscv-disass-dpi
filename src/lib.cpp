@@ -71,7 +71,7 @@ extern const OpInfo UncompressedInsts[] = {
     {"lui",                   ENC_OP(0b0110111),           MASK_OP, InstLayout_U, nullptr},
     {"auipc",                 ENC_OP(0b0010111),           MASK_OP, InstLayout_U, nullptr},
     {"jal",                   ENC_OP(0b1101111),           MASK_OP, InstLayout_J, nullptr},
-    {"jalr",  ENC_F3(0x000) | ENC_OP(0b1100111), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"jalr",  ENC_F3(0x000) | ENC_OP(0b1100111), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
     {"beq",   ENC_F3(0x000) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
     {"bne",   ENC_F3(0x001) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
     {"blt",   ENC_F3(0x100) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
