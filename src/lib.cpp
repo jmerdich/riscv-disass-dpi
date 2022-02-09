@@ -185,6 +185,19 @@ char* rv_disass_u(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
+char* rv_disass_r(unsigned int inst, const OpInfo* info) {
+    char output[64] = {};
+
+    uint32_t rd  = DEC_RD(inst);
+    uint32_t rs1 = DEC_RS1(inst);
+    uint32_t rs2 = DEC_RS2(inst);
+
+    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %s", info->name,  get_abi_name(rd), get_abi_name(rs1), get_abi_name(rs2));
+    assert(size > 0 && (size_t)size < sizeof(output));
+
+    return strdup(output);
+}
+
 char* rv_disass_s(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
@@ -219,6 +232,9 @@ char* rv_disass(unsigned int inst) {
                     break;
                 case InstLayout_S:
                     return rv_disass_s(inst, info);
+                    break;
+                case InstLayout_R:
+                    return rv_disass_r(inst, info);
                     break;
                 default:
                     // not implemented :(
