@@ -75,13 +75,21 @@ bool ShouldSkip(const std::string& llvms) {
     std::string blacklist[] = {
         // Any 64 bit insts
         "w ",
+
+        // Unimplemented exts
+        "fence.i",
         // Psuedo
         "nop",
         "sext.w",
         "beqz",
         "jr ",
         "j ",
+        "mv ", // yeah, mv is actually addi
+        "jalr zero",
+        "jal 0",
 
+        // I'm dealing with you later
+        "unknown",
     };
     for (const auto& tv : blacklist) {
         if (llvms.find(tv) != std::string::npos) {

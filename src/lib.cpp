@@ -13,6 +13,7 @@ enum InstLayout {
     InstLayout_R_shamt5,
     InstLayout_R_shamt6,
     InstLayout_I,
+    InstLayout_I_jump,
     InstLayout_I_load,
     InstLayout_I_fence,
     InstLayout_S,
@@ -71,7 +72,7 @@ extern const OpInfo UncompressedInsts[] = {
     {"lui",                   ENC_OP(0b0110111),           MASK_OP, InstLayout_U, nullptr},
     {"auipc",                 ENC_OP(0b0010111),           MASK_OP, InstLayout_U, nullptr},
     {"jal",                   ENC_OP(0b1101111),           MASK_OP, InstLayout_J, nullptr},
-    {"jalr",  ENC_F3(0x000) | ENC_OP(0b1100111), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
+    {"jalr",  ENC_F3(0x000) | ENC_OP(0b1100111), MASK_F3 | MASK_OP, InstLayout_I_jump, nullptr},
     {"beq",   ENC_F3(0x000) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
     {"bne",   ENC_F3(0x001) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
     {"blt",   ENC_F3(0x100) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
@@ -147,6 +148,28 @@ char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     imm |= MAKE_SEXT_BITS(inst, 12);
 
     int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_reg_name(rd), get_reg_name(rs1), (int32_t)imm);
+    assert(size > 0 && (size_t)size < sizeof(output));
+
+    return strdup(output);
+}
+
+char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
+    char output[64] = {};
+
+    uint32_t rd = DEC_RD(inst);
+    uint32_t rs1 = DEC_RS1(inst);
+    uint32_t imm = DEC_I12(inst);
+
+    // Do sign extension of immediate
+    imm |= MAKE_SEXT_BITS(inst, 12);
+
+    int size = 0;
+    if (imm == 0) {
+        size = snprintf(output, sizeof(output), "%-7s %s, %s", info->name,  get_abi_name(rd), get_abi_name(rs1));
+
+    } else {
+        size = snprintf(output, sizeof(output), "%-7s %s, %d(%s)", info->name,  get_abi_name(rd), (int32_t)imm, get_abi_name(rs1));
+    }
     assert(size > 0 && (size_t)size < sizeof(output));
 
     return strdup(output);
@@ -244,6 +267,9 @@ char* rv_disass(unsigned int inst) {
             switch (info->layout) {
                 case InstLayout_I:
                     return rv_disass_i(inst, info);
+                    break;
+                case InstLayout_I_jump:
+                    return rv_disass_i_jump(inst, info);
                     break;
                 case InstLayout_I_load:
                     return rv_disass_i_load(inst, info);
