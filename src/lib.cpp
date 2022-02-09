@@ -211,6 +211,26 @@ char* rv_disass_s(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
+char* rv_disass_j(unsigned int inst, const OpInfo* info) {
+    char output[64] = {};
+
+    uint32_t rd  = DEC_RD(inst);
+    uint32_t raw_imm = DEC_I20(inst);
+
+    // The next major rev of riscv should put an lfsr here because clearly this isn't convoluted enough.
+    uint32_t imm = 0;
+    imm |= (raw_imm & 0x7F) << 12;
+    imm |= ((raw_imm >> 8) & 0x1) << 11;
+    imm |= ((raw_imm >> 9) & 0x1FF) << 1;
+    imm |= ((raw_imm >> 18) & 0x1) << 20;
+    imm |= MAKE_SEXT_BITS(inst, 21);
+
+    int size = snprintf(output, sizeof(output), "%-7s %s, %d", info->name,  get_abi_name(rd), (int32_t)imm);
+    assert(size > 0 && (size_t)size < sizeof(output));
+
+    return strdup(output);
+}
+
 char* rv_disass(unsigned int inst) {
     // Start with a naive search
     // We can choose better algorithms (bsearch, jump table) later.
@@ -235,6 +255,9 @@ char* rv_disass(unsigned int inst) {
                     break;
                 case InstLayout_R:
                     return rv_disass_r(inst, info);
+                    break;
+                case InstLayout_J:
+                    return rv_disass_j(inst, info);
                     break;
                 default:
                     // not implemented :(

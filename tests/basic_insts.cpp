@@ -80,6 +80,7 @@ bool ShouldSkip(const std::string& llvms) {
         "sext.w",
         "beqz",
         "jr ",
+        "j ",
 
     };
     for (const auto& tv : blacklist) {
