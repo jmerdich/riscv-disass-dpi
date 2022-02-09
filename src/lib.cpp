@@ -188,7 +188,7 @@ char* rv_disass_u(unsigned int inst, const OpInfo* info) {
 char* rv_disass_s(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
-    uint32_t imm = MAKE_SEXT_BITS(inst, 12) | DEC_F7(inst) | DEC_RD(inst);
+    uint32_t imm = MAKE_SEXT_BITS(inst, 12) | (DEC_F7(inst) << 5) | DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t rs2 = DEC_RS2(inst);
 
