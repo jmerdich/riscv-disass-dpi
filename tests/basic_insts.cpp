@@ -78,21 +78,6 @@ bool ShouldSkip(const std::string& llvms) {
         // Unimplemented exts
         "fence.i",
         "csr",
-        // Psuedo
-        "nop",
-        "sext.w",
-        "beqz",
-        "bnez",
-        "jr ",
-        "j ",
-        "jal ", 
-        "sltz", 
-        "ret", 
-        "z ", 
-        "mv ", // yeah, mv is actually addi
-        "jalr zero",
-        "jalr ",
-        "jal 0",
 
         // I'm dealing with you later
         "unknown",

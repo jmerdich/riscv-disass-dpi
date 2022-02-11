@@ -24,6 +24,15 @@ enum InstLayout {
     InstLayout_None,
 };
 
+// Psuedoinst flags (per InstLayout)
+#define PS_I_NOP  (1 << 0)
+#define PS_I_MV   (1 << 1)
+#define PS_I_NOT  (1 << 2)
+#define PS_I_SEXT (1 << 3)
+
+#define PS_R_NEG  (1 << 0)
+#define PS_R_NEGW (1 << 1)
+
 #define SHIFT_OP   0
 #define SHIFT_RD   7
 #define SHIFT_F3   12
@@ -70,71 +79,71 @@ struct Context {
 } g_context = {};
 
 struct OpInfo {
-    const char* name;
+    const char  name[8];
     uint32_t    searchVal;
     uint32_t    searchMask;
     InstLayout  layout;
-    void*       pseudoInsts;
+    uint32_t    pseudoInstFlags;
 };
 
 extern const OpInfo UncompressedInsts[] = {
     // =========================================
     // RV32I Base Instruction Set
-    {"lui",                   ENC_OP(0b0110111),           MASK_OP, InstLayout_U, nullptr},
-    {"auipc",                 ENC_OP(0b0010111),           MASK_OP, InstLayout_U, nullptr},
-    {"jal",                   ENC_OP(0b1101111),           MASK_OP, InstLayout_J, nullptr},
-    {"jalr",  ENC_F3(0b000) | ENC_OP(0b1100111), MASK_F3 | MASK_OP, InstLayout_I_jump, nullptr},
-    {"beq",   ENC_F3(0b000) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
-    {"bne",   ENC_F3(0b001) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
-    {"blt",   ENC_F3(0b100) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
-    {"bge",   ENC_F3(0b101) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
-    {"bltu",  ENC_F3(0b110) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
-    {"bgeu",  ENC_F3(0b111) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, nullptr},
-    {"lb",    ENC_F3(0b000) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
-    {"lh",    ENC_F3(0b001) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
-    {"lw",    ENC_F3(0b010) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
-    {"lbu",   ENC_F3(0b100) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
-    {"lhu",   ENC_F3(0b101) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
-    {"sb",    ENC_F3(0b000) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, nullptr},
-    {"sh",    ENC_F3(0b001) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, nullptr},
-    {"sw",    ENC_F3(0b010) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, nullptr},
-    {"addi",  ENC_F3(0b000) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"slti",  ENC_F3(0b010) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"sltiu", ENC_F3(0b011) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"xori",  ENC_F3(0b100) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"ori",   ENC_F3(0b110) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"andi",  ENC_F3(0b111) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"lui",                   ENC_OP(0b0110111),           MASK_OP, InstLayout_U, 0},
+    {"auipc",                 ENC_OP(0b0010111),           MASK_OP, InstLayout_U, 0},
+    {"jal",                   ENC_OP(0b1101111),           MASK_OP, InstLayout_J, 0},
+    {"jalr",  ENC_F3(0b000) | ENC_OP(0b1100111), MASK_F3 | MASK_OP, InstLayout_I_jump, 0},
+    {"beq",   ENC_F3(0b000) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
+    {"bne",   ENC_F3(0b001) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
+    {"blt",   ENC_F3(0b100) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
+    {"bge",   ENC_F3(0b101) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
+    {"bltu",  ENC_F3(0b110) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
+    {"bgeu",  ENC_F3(0b111) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
+    {"lb",    ENC_F3(0b000) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, 0},
+    {"lh",    ENC_F3(0b001) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, 0},
+    {"lw",    ENC_F3(0b010) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, 0},
+    {"lbu",   ENC_F3(0b100) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, 0},
+    {"lhu",   ENC_F3(0b101) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, 0},
+    {"sb",    ENC_F3(0b000) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, 0},
+    {"sh",    ENC_F3(0b001) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, 0},
+    {"sw",    ENC_F3(0b010) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, 0},
+    {"addi",  ENC_F3(0b000) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, PS_I_NOP | PS_I_MV},
+    {"slti",  ENC_F3(0b010) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
+    {"sltiu", ENC_F3(0b011) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
+    {"xori",  ENC_F3(0b100) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
+    {"ori",   ENC_F3(0b110) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
+    {"andi",  ENC_F3(0b111) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
     // shift imm insts skipped in favor of 64-bit variants
-    {"add",   ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"sub",   ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"sll",   ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"slt",   ENC_F7(0b0000000) | ENC_F3(0b010) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"sltu",  ENC_F7(0b0000000) | ENC_F3(0b011) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"xor",   ENC_F7(0b0000000) | ENC_F3(0b100) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"srl",   ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"sra",   ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"or",    ENC_F7(0b0000000) | ENC_F3(0b110) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"and",   ENC_F7(0b0000000) | ENC_F3(0b111) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"fence",                     ENC_F3(0b000) | ENC_OP(0b0001111),           MASK_F3 | MASK_OP, InstLayout_I_fence, nullptr},
-    {"ecall",                                           0x000000073,                    MASK_ALL, InstLayout_None, nullptr},
-    {"ebreak",                                          0x000100073,                    MASK_ALL, InstLayout_None, nullptr},
+    {"add",   ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"sub",   ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"sll",   ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"slt",   ENC_F7(0b0000000) | ENC_F3(0b010) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"sltu",  ENC_F7(0b0000000) | ENC_F3(0b011) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"xor",   ENC_F7(0b0000000) | ENC_F3(0b100) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"srl",   ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"sra",   ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"or",    ENC_F7(0b0000000) | ENC_F3(0b110) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"and",   ENC_F7(0b0000000) | ENC_F3(0b111) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"fence",                     ENC_F3(0b000) | ENC_OP(0b0001111),           MASK_F3 | MASK_OP, InstLayout_I_fence, 0},
+    {"ecall",                                           0x000000073,                    MASK_ALL, InstLayout_None, 0},
+    {"ebreak",                                          0x000100073,                    MASK_ALL, InstLayout_None, 0},
     // =========================================
     // RV64I Base Instruction Set
-    {"lwu",                       ENC_F3(0b110) | ENC_OP(0b0000011),           MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
-    {"ld",                        ENC_F3(0b011) | ENC_OP(0b0000011),           MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
-    {"sd",                        ENC_F3(0b011) | ENC_OP(0b0100011),           MASK_F3 | MASK_OP, InstLayout_S, nullptr},
-    {"slli",   ENC_F6(0b000000) | ENC_F3(0b001) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
-    {"srli",   ENC_F6(0b000000) | ENC_F3(0b101) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
-    {"srai",   ENC_F6(0b010000) | ENC_F3(0b101) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
-    {"addiw",                     ENC_F3(0b000) | ENC_OP(0b0011011),           MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    {"slliw", ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
-    {"srliw", ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
-    {"sraiw", ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
-    {"addw",  ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"subw",  ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"sllw",  ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"srlw",  ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
-    {"sraw",  ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"lwu",                       ENC_F3(0b110) | ENC_OP(0b0000011),           MASK_F3 | MASK_OP, InstLayout_I_load, 0},
+    {"ld",                        ENC_F3(0b011) | ENC_OP(0b0000011),           MASK_F3 | MASK_OP, InstLayout_I_load, 0},
+    {"sd",                        ENC_F3(0b011) | ENC_OP(0b0100011),           MASK_F3 | MASK_OP, InstLayout_S, 0},
+    {"slli",   ENC_F6(0b000000) | ENC_F3(0b001) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, 0},
+    {"srli",   ENC_F6(0b000000) | ENC_F3(0b101) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, 0},
+    {"srai",   ENC_F6(0b010000) | ENC_F3(0b101) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, 0},
+    {"addiw",                     ENC_F3(0b000) | ENC_OP(0b0011011),           MASK_F3 | MASK_OP, InstLayout_I, PS_I_SEXT},
+    {"slliw", ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, 0},
+    {"srliw", ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, 0},
+    {"sraiw", ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, 0},
+    {"addw",  ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"subw",  ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"sllw",  ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"srlw",  ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"sraw",  ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
 };
 
 extern const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
@@ -175,6 +184,31 @@ char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     // Do sign extension of immediate
     imm |= MAKE_SEXT_BITS(inst, 12);
 
+    if (g_context.UsePsuedoInsts && info->pseudoInstFlags) {
+        if ((info->pseudoInstFlags & PS_I_NOP) && 
+            (rd == 0) && (rs1 == 0) && (imm == 0)) {
+            return strdup("nop");
+        }
+        if ((info->pseudoInstFlags & PS_I_MV) && 
+            (imm == 0)) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "mv",  get_abi_name(rd), get_abi_name(rs1));
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+        if ((info->pseudoInstFlags & PS_I_NOT) && 
+            (imm == (uint32_t)-1)) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "not",  get_abi_name(rd), get_abi_name(rs1));
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+        if ((info->pseudoInstFlags & PS_I_SEXT) && 
+            (imm == 0)) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "sext.w",  get_abi_name(rd), get_abi_name(rs1));
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+    }
+
     int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rd), get_abi_name(rs1), (int32_t)imm);
     assert(size > 0 && (size_t)size < sizeof(output));
 
@@ -205,9 +239,14 @@ char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
     imm |= MAKE_SEXT_BITS(inst, 12);
 
     int size = 0;
-    if (imm == 0 && g_context.UsePsuedoInsts) {
+    if (rd == 0 && imm == 0 && rs1 == 1 && g_context.UsePsuedoInsts) {
+        return strdup("ret");
+    } else if (rd == 0 && imm == 0 && g_context.UsePsuedoInsts) {
+        size = snprintf(output, sizeof(output), "%-7s %s", "jr",  get_abi_name(rs1));
+    } else if (rd == 1 && imm == 0 && g_context.UsePsuedoInsts) {
+        size = snprintf(output, sizeof(output), "%-7s %s", info->name,  get_abi_name(rs1));
+    } else if (imm == 0 && g_context.UsePsuedoInsts) {
         size = snprintf(output, sizeof(output), "%-7s %s, %s", info->name,  get_abi_name(rd), get_abi_name(rs1));
-
     } else {
         size = snprintf(output, sizeof(output), "%-7s %s, %d(%s)", info->name,  get_abi_name(rd), (int32_t)imm, get_abi_name(rs1));
     }
@@ -263,6 +302,17 @@ char* rv_disass_b(unsigned int inst, const OpInfo* info) {
     imm |= (inst & 0x7E000000) >> 20;
     imm |= MAKE_SEXT_BITS(inst, 12);
 
+    if (g_context.UsePsuedoInsts) {
+        if (rs2 == 0) {
+            char newinst[8] = {};
+            strcpy(newinst, info->name);
+            strcat(newinst, "z");
+            int size = snprintf(output, sizeof(output), "%-7s %s, %d", newinst,  get_abi_name(rs1), (int32_t)imm);
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+    }
+
     int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rs1), get_abi_name(rs2), (int32_t)imm);
     assert(size > 0 && (size_t)size < sizeof(output));
 
@@ -309,8 +359,16 @@ char* rv_disass_j(unsigned int inst, const OpInfo* info) {
     imm |= ((raw_imm >> 18) & 0x1) << 20;
     imm |= MAKE_SEXT_BITS(inst, 21);
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %d", info->name,  get_abi_name(rd), (int32_t)imm);
-    assert(size > 0 && (size_t)size < sizeof(output));
+    if (g_context.UsePsuedoInsts && rd == 0) {
+        int size = snprintf(output, sizeof(output), "%-7s %d", "j",  (int32_t)imm);
+        assert(size > 0 && (size_t)size < sizeof(output));
+    } else if (g_context.UsePsuedoInsts && rd == 1) {
+        int size = snprintf(output, sizeof(output), "%-7s %d", "jal",  (int32_t)imm);
+        assert(size > 0 && (size_t)size < sizeof(output));
+    } else {
+        int size = snprintf(output, sizeof(output), "%-7s %s, %d", info->name,  get_abi_name(rd), (int32_t)imm);
+        assert(size > 0 && (size_t)size < sizeof(output));
+    }
 
     return strdup(output);
 }
