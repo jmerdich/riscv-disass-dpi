@@ -9,8 +9,8 @@
     ASSERT_STREQ(rv_disass(inst), disass)
 
 TEST(Rv32Basic, Core) {
-    ASSERT_DISASS(0x00000093, "addi    x1, zero, 0");
-    ASSERT_DISASS(0xFFF00093, "addi    x1, zero, -1");
+    ASSERT_DISASS(0x00000093, "addi    ra, zero, 0");
+    ASSERT_DISASS(0xFFF00093, "addi    ra, zero, -1");
 }
 
 TEST(LiterallyEverything, DISABLED_DontCrash) {
@@ -87,13 +87,16 @@ bool ShouldSkip(const std::string& llvms) {
         "j ",
         "jal ", 
         "sltz", 
+        "ret", 
         "z ", 
         "mv ", // yeah, mv is actually addi
         "jalr zero",
+        "jalr ",
         "jal 0",
 
         // I'm dealing with you later
         "unknown",
+        "fence ",
     };
     for (const auto& tv : blacklist) {
         if (llvms.find(tv) != std::string::npos) {
@@ -120,7 +123,7 @@ TEST(LiterallyEverything, CompareToLlvm) {
         }
 
         rv_free(rv_inst_raw);
-        if ((inst % 0x100000) == 0) {
+        if ((inst % 0x10000) == 0) {
             printf("...0x%08x\n", inst);
         }
 

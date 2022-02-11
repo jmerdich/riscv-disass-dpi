@@ -116,7 +116,7 @@ extern const OpInfo UncompressedInsts[] = {
     {"and",   ENC_F7(0b0000000) | ENC_F3(0b111) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
     {"fence",                     ENC_F3(0b000) | ENC_OP(0b0001111),           MASK_F3 | MASK_OP, InstLayout_I_fence, nullptr},
     {"ecall",                                           0x000000073,                    MASK_ALL, InstLayout_None, nullptr},
-    {"ebreak",                                          0x001000073,                    MASK_ALL, InstLayout_None, nullptr},
+    {"ebreak",                                          0x000100073,                    MASK_ALL, InstLayout_None, nullptr},
     // =========================================
     // RV64I Base Instruction Set
     {"lwu",                       ENC_F3(0b110) | ENC_OP(0b0000011),           MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
@@ -125,7 +125,7 @@ extern const OpInfo UncompressedInsts[] = {
     {"slli",   ENC_F6(0b000000) | ENC_F3(0b001) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
     {"srli",   ENC_F6(0b000000) | ENC_F3(0b101) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
     {"srai",   ENC_F6(0b010000) | ENC_F3(0b101) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
-    {"addi",                      ENC_F3(0b000) | ENC_OP(0b0010011),           MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"addiw",                     ENC_F3(0b000) | ENC_OP(0b0011011),           MASK_F3 | MASK_OP, InstLayout_I, nullptr},
     {"slliw", ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
     {"srliw", ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
     {"sraiw", ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
