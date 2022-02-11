@@ -285,7 +285,7 @@ char* rv_disass_s(unsigned int inst, const OpInfo* info) {
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t rs2 = DEC_RS2(inst);
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %d(%s)", info->name,  get_abi_name(rs1), (int32_t)imm, get_abi_name(rs2));
+    int size = snprintf(output, sizeof(output), "%-7s %s, %d(%s)", info->name,  get_abi_name(rs2), (int32_t)imm, get_abi_name(rs1));
     assert(size > 0 && (size_t)size < sizeof(output));
 
     return strdup(output);
