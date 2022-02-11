@@ -9,8 +9,8 @@
     ASSERT_STREQ(rv_disass(inst), disass)
 
 TEST(Rv32Basic, Core) {
-    ASSERT_DISASS(0x00000093, "addi    x1, x0, 0");
-    ASSERT_DISASS(0xFFF00093, "addi    x1, x0, -1");
+    ASSERT_DISASS(0x00000093, "addi    x1, zero, 0");
+    ASSERT_DISASS(0xFFF00093, "addi    x1, zero, -1");
 }
 
 TEST(LiterallyEverything, DISABLED_DontCrash) {
@@ -74,16 +74,20 @@ std::string normalize_ws(std::string input) {
 bool ShouldSkip(const std::string& llvms) {
     std::string blacklist[] = {
         // Any 64 bit insts
-        "w ",
 
         // Unimplemented exts
         "fence.i",
+        "csr",
         // Psuedo
         "nop",
         "sext.w",
         "beqz",
+        "bnez",
         "jr ",
         "j ",
+        "jal ", 
+        "sltz", 
+        "z ", 
         "mv ", // yeah, mv is actually addi
         "jalr zero",
         "jal 0",

@@ -171,7 +171,7 @@ char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     // Do sign extension of immediate
     imm |= MAKE_SEXT_BITS(inst, 12);
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_reg_name(rd), get_reg_name(rs1), (int32_t)imm);
+    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rd), get_abi_name(rs1), (int32_t)imm);
     assert(size > 0 && (size_t)size < sizeof(output));
 
     return strdup(output);
@@ -184,7 +184,7 @@ char* rv_disass_i_shift(unsigned int inst, const OpInfo* info) {
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t imm = DEC_SHMT(inst);
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_reg_name(rd), get_reg_name(rs1), (int32_t)imm);
+    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rd), get_abi_name(rs1), (int32_t)imm);
     assert(size > 0 && (size_t)size < sizeof(output));
 
     return strdup(output);
@@ -237,9 +237,29 @@ char* rv_disass_u(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t rd = DEC_RD(inst);
-    uint32_t imm = DEC_I20(inst) << 12;
+    uint32_t imm = DEC_I20(inst);
 
     int size = snprintf(output, sizeof(output), "%-7s %s, %d", info->name,  get_abi_name(rd), (int32_t)imm);
+    assert(size > 0 && (size_t)size < sizeof(output));
+
+    return strdup(output);
+}
+
+char* rv_disass_b(unsigned int inst, const OpInfo* info) {
+    char output[64] = {};
+
+    uint32_t rs1 = DEC_RS1(inst);
+    uint32_t rs2 = DEC_RS2(inst);
+
+    // Throw these bits at a dartboard and see where they land....
+    // Exactly what are they smoking at Berkeley?
+    uint32_t imm = 0;
+    imm |= (inst & 0x80) << 4;
+    imm |= (inst & 0xF00) >> 7;
+    imm |= (inst & 0x7E000000) >> 20;
+    imm |= MAKE_SEXT_BITS(inst, 12);
+
+    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rs1), get_abi_name(rs2), (int32_t)imm);
     assert(size > 0 && (size_t)size < sizeof(output));
 
     return strdup(output);
@@ -302,6 +322,9 @@ char* rv_disass(unsigned int inst) {
         const OpInfo* info = &UncompressedInsts[i];
         if ((inst & info->searchMask) == info->searchVal) {
             switch (info->layout) {
+                case InstLayout_B:
+                    return rv_disass_b(inst, info);
+                    break;
                 case InstLayout_I:
                     return rv_disass_i(inst, info);
                     break;
