@@ -57,6 +57,9 @@ enum InstLayout {
 
 #define MAKE_SEXT_BITS(inst, bits) (((int32_t)((inst) & 0x80000000)) >> (32 - bits))
 
+struct Context {
+    bool  UsePsuedoInsts;
+} g_context = {};
 
 struct OpInfo {
     const char* name;
@@ -164,7 +167,7 @@ char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
     imm |= MAKE_SEXT_BITS(inst, 12);
 
     int size = 0;
-    if (imm == 0) {
+    if (imm == 0 && g_context.UsePsuedoInsts) {
         size = snprintf(output, sizeof(output), "%-7s %s, %s", info->name,  get_abi_name(rd), get_abi_name(rs1));
 
     } else {
@@ -304,4 +307,14 @@ char* rv_disass(unsigned int inst) {
 
 void rv_free(char* str) {
     free(str);
+}
+
+void rv_set_option(const char* str, bool enabled) {
+    if (strcmp(str, "UsePsuedoInsts") == 0) {
+        g_context.UsePsuedoInsts = enabled;
+    }
+}
+
+void rv_reset_options() {
+    g_context = {};
 }

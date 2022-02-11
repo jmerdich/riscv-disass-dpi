@@ -101,6 +101,7 @@ bool ShouldSkip(const std::string& llvms) {
 
 TEST(LiterallyEverything, CompareToLlvm) {
     LLVMDisasmContextRef dis = GetLlvmDisassembler();
+    rv_set_option("UsePsuedoInsts", true);
     for (uint32_t inst = 0; ; inst++) {
         char* rv_inst_raw = rv_disass(inst);
         std::string rv_inst = normalize_ws(rv_inst_raw);
