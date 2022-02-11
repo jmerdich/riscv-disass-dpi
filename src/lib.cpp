@@ -16,6 +16,7 @@ enum InstLayout {
     InstLayout_I_jump,
     InstLayout_I_load,
     InstLayout_I_fence,
+    InstLayout_I_shift,
     InstLayout_S,
     InstLayout_B,
     InstLayout_U,
@@ -23,14 +24,16 @@ enum InstLayout {
     InstLayout_None,
 };
 
-#define SHIFT_OP  0
-#define SHIFT_RD  7
-#define SHIFT_F3  12
-#define SHIFT_I20 12
-#define SHIFT_RS1 15
-#define SHIFT_RS2 20
-#define SHIFT_I12 20
-#define SHIFT_F7  25
+#define SHIFT_OP   0
+#define SHIFT_RD   7
+#define SHIFT_F3   12
+#define SHIFT_I20  12
+#define SHIFT_RS1  15
+#define SHIFT_RS2  20
+#define SHIFT_SHMT 20
+#define SHIFT_I12  20
+#define SHIFT_F7   25
+#define SHIFT_F6   26
 
 #define MASK_OP   0x0000007F
 #define MASK_RD   0x00000F80
@@ -38,6 +41,8 @@ enum InstLayout {
 #define MASK_RS1  0x000F8000
 #define MASK_RS2  0x01F00000
 #define MASK_F7   0xFE000000
+#define MASK_F6   0xFC000000
+#define MASK_SHMT 0x03F00000
 #define MASK_I12  0xFFF00000
 #define MASK_I20  0xFFFFF000
 #define MASK_ALL  0xFFFFFFFF
@@ -45,15 +50,17 @@ enum InstLayout {
 #define ENC_OP(x) ((x) << SHIFT_OP)
 #define ENC_F3(x) ((x) << SHIFT_F3)
 #define ENC_F7(x) ((x) << SHIFT_F7)
+#define ENC_F6(x) ((x) << SHIFT_F6)
 
-#define DEC_OP(x)  (((x) & MASK_OP) >> SHIFT_OP)
-#define DEC_F3(x)  (((x) & MASK_F3) >> SHIFT_F3)
-#define DEC_F7(x)  (((x) & MASK_F7) >> SHIFT_F7)
-#define DEC_RD(x)  (((x) & MASK_RD) >> SHIFT_RD)
-#define DEC_RS1(x) (((x) & MASK_RS1) >> SHIFT_RS1)
-#define DEC_RS2(x) (((x) & MASK_RS2) >> SHIFT_RS2)
-#define DEC_I12(x)  (((x) & MASK_I12) >> SHIFT_I12)
-#define DEC_I20(x)  (((x) & MASK_I20) >> SHIFT_I20)
+#define DEC_OP(x)   (((x) & MASK_OP)   >> SHIFT_OP)
+#define DEC_F3(x)   (((x) & MASK_F3)   >> SHIFT_F3)
+#define DEC_F7(x)   (((x) & MASK_F7)   >> SHIFT_F7)
+#define DEC_RD(x)   (((x) & MASK_RD)   >> SHIFT_RD)
+#define DEC_RS1(x)  (((x) & MASK_RS1)  >> SHIFT_RS1)
+#define DEC_RS2(x)  (((x) & MASK_RS2)  >> SHIFT_RS2)
+#define DEC_SHMT(x) (((x) & MASK_SHMT) >> SHIFT_SHMT)
+#define DEC_I12(x)  (((x) & MASK_I12)  >> SHIFT_I12)
+#define DEC_I20(x)  (((x) & MASK_I20)  >> SHIFT_I20)
 
 #define MAKE_SEXT_BITS(inst, bits) (((int32_t)((inst) & 0x80000000)) >> (32 - bits))
 
@@ -96,7 +103,7 @@ extern const OpInfo UncompressedInsts[] = {
     {"xori",  ENC_F3(0b100) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
     {"ori",   ENC_F3(0b110) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
     {"andi",  ENC_F3(0b111) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, nullptr},
-    // shift insts skipped in favor of 64-bit variants
+    // shift imm insts skipped in favor of 64-bit variants
     {"add",   ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
     {"sub",   ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
     {"sll",   ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
@@ -112,14 +119,28 @@ extern const OpInfo UncompressedInsts[] = {
     {"ebreak",                                          0x001000073,                    MASK_ALL, InstLayout_None, nullptr},
     // =========================================
     // RV64I Base Instruction Set
-    // ...
+    {"lwu",                       ENC_F3(0b110) | ENC_OP(0b0000011),           MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
+    {"ld",                        ENC_F3(0b011) | ENC_OP(0b0000011),           MASK_F3 | MASK_OP, InstLayout_I_load, nullptr},
+    {"sd",                        ENC_F3(0b011) | ENC_OP(0b0100011),           MASK_F3 | MASK_OP, InstLayout_S, nullptr},
+    {"slli",   ENC_F6(0b000000) | ENC_F3(0b001) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
+    {"srli",   ENC_F6(0b000000) | ENC_F3(0b101) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
+    {"srai",   ENC_F6(0b010000) | ENC_F3(0b101) | ENC_OP(0b0010011), MASK_F6 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
+    {"addi",                      ENC_F3(0b000) | ENC_OP(0b0010011),           MASK_F3 | MASK_OP, InstLayout_I, nullptr},
+    {"slliw", ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
+    {"srliw", ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
+    {"sraiw", ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, nullptr},
+    {"addw",  ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"subw",  ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"sllw",  ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"srlw",  ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
+    {"sraw",  ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, nullptr},
 };
 
 extern const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
 
 const char* get_reg_name(uint8_t reg) {
     const char* RegNames[] = {
-         "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",
+       "zero",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",
         "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19",
         "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29",
         "x30", "x31"
@@ -149,6 +170,19 @@ char* rv_disass_i(unsigned int inst, const OpInfo* info) {
 
     // Do sign extension of immediate
     imm |= MAKE_SEXT_BITS(inst, 12);
+
+    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_reg_name(rd), get_reg_name(rs1), (int32_t)imm);
+    assert(size > 0 && (size_t)size < sizeof(output));
+
+    return strdup(output);
+}
+
+char* rv_disass_i_shift(unsigned int inst, const OpInfo* info) {
+    char output[64] = {};
+
+    uint32_t rd = DEC_RD(inst);
+    uint32_t rs1 = DEC_RS1(inst);
+    uint32_t imm = DEC_SHMT(inst);
 
     int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_reg_name(rd), get_reg_name(rs1), (int32_t)imm);
     assert(size > 0 && (size_t)size < sizeof(output));
@@ -276,6 +310,9 @@ char* rv_disass(unsigned int inst) {
                     break;
                 case InstLayout_I_load:
                     return rv_disass_i_load(inst, info);
+                    break;
+                case InstLayout_I_shift:
+                    return rv_disass_i_shift(inst, info);
                     break;
                 case InstLayout_I_fence:
                     return rv_disass_i_fence(inst, info);
