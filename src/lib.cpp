@@ -66,6 +66,7 @@ enum InstLayout {
 
 struct Context {
     bool  UsePsuedoInsts;
+    bool  NoAbiNames;
 } g_context = {};
 
 struct OpInfo {
@@ -150,6 +151,9 @@ const char* get_reg_name(uint8_t reg) {
 }
 
 const char* get_abi_name(uint8_t reg) {
+    if (g_context.NoAbiNames) {
+        return get_reg_name(reg);
+    }
     const char* RegNames[] = {
         "zero", "ra", "sp", "gp", "tp", "t0",  "t1",  "t2", "s0", "s1",
           "a0", "a1", "a2", "a3", "a4", "a5",  "a6",  "a7", "s2", "s3",
@@ -372,6 +376,9 @@ void rv_free(char* str) {
 void rv_set_option(const char* str, bool enabled) {
     if (strcmp(str, "UsePsuedoInsts") == 0) {
         g_context.UsePsuedoInsts = enabled;
+    }
+    if (strcmp(str, "NoAbiNames") == 0) {
+        g_context.NoAbiNames = enabled;
     }
 }
 
