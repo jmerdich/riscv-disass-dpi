@@ -29,9 +29,17 @@ enum InstLayout {
 #define PS_I_MV   (1 << 1)
 #define PS_I_NOT  (1 << 2)
 #define PS_I_SEXT (1 << 3)
+#define PS_I_SEQZ (1 << 4)
 
 #define PS_R_NEG  (1 << 0)
 #define PS_R_NEGW (1 << 1)
+#define PS_R_SNEZ (1 << 2) /* achoo! */
+#define PS_R_SLTZ (1 << 3)
+#define PS_R_SGTZ (1 << 4)
+
+#define PS_B_BLEZ  (1 << 0) /* bless you! */
+#define PS_B_BGTZ  (1 << 1)
+#define PS_B_ANY_Z (1 << 2)
 
 #define SHIFT_OP   0
 #define SHIFT_RD   7
@@ -93,10 +101,10 @@ extern const OpInfo UncompressedInsts[] = {
     {"auipc",                 ENC_OP(0b0010111),           MASK_OP, InstLayout_U, 0},
     {"jal",                   ENC_OP(0b1101111),           MASK_OP, InstLayout_J, 0},
     {"jalr",  ENC_F3(0b000) | ENC_OP(0b1100111), MASK_F3 | MASK_OP, InstLayout_I_jump, 0},
-    {"beq",   ENC_F3(0b000) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
-    {"bne",   ENC_F3(0b001) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
-    {"blt",   ENC_F3(0b100) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
-    {"bge",   ENC_F3(0b101) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
+    {"beq",   ENC_F3(0b000) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, PS_B_ANY_Z},
+    {"bne",   ENC_F3(0b001) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, PS_B_ANY_Z},
+    {"blt",   ENC_F3(0b100) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, PS_B_ANY_Z | PS_B_BGTZ},
+    {"bge",   ENC_F3(0b101) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, PS_B_ANY_Z | PS_B_BLEZ},
     {"bltu",  ENC_F3(0b110) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
     {"bgeu",  ENC_F3(0b111) | ENC_OP(0b1100011), MASK_F3 | MASK_OP, InstLayout_B, 0},
     {"lb",    ENC_F3(0b000) | ENC_OP(0b0000011), MASK_F3 | MASK_OP, InstLayout_I_load, 0},
@@ -109,7 +117,7 @@ extern const OpInfo UncompressedInsts[] = {
     {"sw",    ENC_F3(0b010) | ENC_OP(0b0100011), MASK_F3 | MASK_OP, InstLayout_S, 0},
     {"addi",  ENC_F3(0b000) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, PS_I_NOP | PS_I_MV},
     {"slti",  ENC_F3(0b010) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
-    {"sltiu", ENC_F3(0b011) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
+    {"sltiu", ENC_F3(0b011) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, PS_I_SEQZ},
     {"xori",  ENC_F3(0b100) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
     {"ori",   ENC_F3(0b110) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
     {"andi",  ENC_F3(0b111) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
@@ -117,8 +125,8 @@ extern const OpInfo UncompressedInsts[] = {
     {"add",   ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
     {"sub",   ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
     {"sll",   ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
-    {"slt",   ENC_F7(0b0000000) | ENC_F3(0b010) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
-    {"sltu",  ENC_F7(0b0000000) | ENC_F3(0b011) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"slt",   ENC_F7(0b0000000) | ENC_F3(0b010) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, PS_R_SLTZ | PS_R_SGTZ},
+    {"sltu",  ENC_F7(0b0000000) | ENC_F3(0b011) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, PS_R_SNEZ},
     {"xor",   ENC_F7(0b0000000) | ENC_F3(0b100) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
     {"srl",   ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
     {"sra",   ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
@@ -207,6 +215,12 @@ char* rv_disass_i(unsigned int inst, const OpInfo* info) {
             assert(size > 0 && (size_t)size < sizeof(output));
             return strdup(output);
         }
+        if ((info->pseudoInstFlags & PS_I_SEQZ) && 
+            (imm == 1)) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "seqz",  get_abi_name(rd), get_abi_name(rs1));
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
     }
 
     int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rd), get_abi_name(rs1), (int32_t)imm);
@@ -243,8 +257,12 @@ char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
         return strdup("ret");
     } else if (rd == 0 && imm == 0 && g_context.UsePsuedoInsts) {
         size = snprintf(output, sizeof(output), "%-7s %s", "jr",  get_abi_name(rs1));
+    } else if (rd == 0 && g_context.UsePsuedoInsts) {
+        size = snprintf(output, sizeof(output), "%-7s %d(%s)", "jr", (int32_t)imm, get_abi_name(rs1));
     } else if (rd == 1 && imm == 0 && g_context.UsePsuedoInsts) {
         size = snprintf(output, sizeof(output), "%-7s %s", info->name,  get_abi_name(rs1));
+    } else if (rd == 1 && g_context.UsePsuedoInsts) {
+        size = snprintf(output, sizeof(output), "%-7s %d(%s)", info->name, (int32_t)imm, get_abi_name(rs1));
     } else if (imm == 0 && g_context.UsePsuedoInsts) {
         size = snprintf(output, sizeof(output), "%-7s %s, %s", info->name,  get_abi_name(rd), get_abi_name(rs1));
     } else {
@@ -303,11 +321,21 @@ char* rv_disass_b(unsigned int inst, const OpInfo* info) {
     imm |= MAKE_SEXT_BITS(inst, 12);
 
     if (g_context.UsePsuedoInsts) {
-        if (rs2 == 0) {
+        if (info->pseudoInstFlags & PS_B_BLEZ && rs1 == 0) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %d", "blez",  get_abi_name(rs2), (int32_t)imm);
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+        if (info->pseudoInstFlags & PS_B_ANY_Z && rs2 == 0) {
             char newinst[8] = {};
             strcpy(newinst, info->name);
             strcat(newinst, "z");
             int size = snprintf(output, sizeof(output), "%-7s %s, %d", newinst,  get_abi_name(rs1), (int32_t)imm);
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+        if (info->pseudoInstFlags & PS_B_BGTZ && rs1 == 0) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %d", "bgtz",  get_abi_name(rs2), (int32_t)imm);
             assert(size > 0 && (size_t)size < sizeof(output));
             return strdup(output);
         }
@@ -325,6 +353,26 @@ char* rv_disass_r(unsigned int inst, const OpInfo* info) {
     uint32_t rd  = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t rs2 = DEC_RS2(inst);
+
+    if (g_context.UsePsuedoInsts && info->pseudoInstFlags)
+    {
+        if (info->pseudoInstFlags & PS_R_SNEZ && rs1 == 0) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "snez",  get_abi_name(rd), get_abi_name(rs2));
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+        if (info->pseudoInstFlags & PS_R_SLTZ && rs2 == 0) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "sltz",  get_abi_name(rd), get_abi_name(rs1));
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+        if (info->pseudoInstFlags & PS_R_SGTZ && rs1 == 0) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "sgtz",  get_abi_name(rd), get_abi_name(rs2));
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+
+    }
 
     int size = snprintf(output, sizeof(output), "%-7s %s, %s, %s", info->name,  get_abi_name(rd), get_abi_name(rs1), get_abi_name(rs2));
     assert(size > 0 && (size_t)size < sizeof(output));
@@ -353,9 +401,9 @@ char* rv_disass_j(unsigned int inst, const OpInfo* info) {
 
     // The next major rev of riscv should put an lfsr here because clearly this isn't convoluted enough.
     uint32_t imm = 0;
-    imm |= (raw_imm & 0x7F) << 12;
+    imm |= (raw_imm & 0xFF) << 12;
     imm |= ((raw_imm >> 8) & 0x1) << 11;
-    imm |= ((raw_imm >> 9) & 0x1FF) << 1;
+    imm |= ((raw_imm >> 9) & 0x3FF) << 1;
     imm |= ((raw_imm >> 18) & 0x1) << 20;
     imm |= MAKE_SEXT_BITS(inst, 21);
 

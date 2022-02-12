@@ -78,6 +78,7 @@ bool ShouldSkip(const std::string& llvms) {
         // Unimplemented exts
         "fence.i",
         "csr",
+        "uret",
 
         // I'm dealing with you later
         "unknown",
