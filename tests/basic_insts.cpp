@@ -78,11 +78,16 @@ bool ShouldSkip(const std::string& llvms) {
         // Unimplemented exts
         "fence.i",
         "csr",
+        "unimp", // It's literally an inst that is defined to not be implemented
         "uret",
+        "sret",
+        "dret",
+        "mret",
+        "wfi",
 
         // I'm dealing with you later
         "unknown",
-        "fence ",
+        "fence",
     };
     for (const auto& tv : blacklist) {
         if (llvms.find(tv) != std::string::npos) {
@@ -92,10 +97,18 @@ bool ShouldSkip(const std::string& llvms) {
     return false;
 }
 
+uint32_t get_start_point() {
+    uint32_t start = 0;
+    if (getenv("START_INST")) {
+        start = atoi(getenv("START_INST"));
+    }
+    return start;
+}
+
 TEST(LiterallyEverything, CompareToLlvm) {
     LLVMDisasmContextRef dis = GetLlvmDisassembler();
     rv_set_option("UsePsuedoInsts", true);
-    for (uint32_t inst = 0; ; inst++) {
+    for (uint32_t inst = get_start_point(); ; inst++) {
         char* rv_inst_raw = rv_disass(inst);
         std::string rv_inst = normalize_ws(rv_inst_raw);
         std::string llvm_inst = normalize_ws(GetDisassFromLlvm(dis, inst));
@@ -109,7 +122,7 @@ TEST(LiterallyEverything, CompareToLlvm) {
         }
 
         rv_free(rv_inst_raw);
-        if ((inst % 0x10000) == 0) {
+        if ((inst % 0x1000000) == 0) {
             printf("...0x%08x\n", inst);
         }
 

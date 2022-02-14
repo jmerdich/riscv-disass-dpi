@@ -123,7 +123,7 @@ extern const OpInfo UncompressedInsts[] = {
     {"andi",  ENC_F3(0b111) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
     // shift imm insts skipped in favor of 64-bit variants
     {"add",   ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
-    {"sub",   ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"sub",   ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, PS_R_NEG},
     {"sll",   ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
     {"slt",   ENC_F7(0b0000000) | ENC_F3(0b010) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, PS_R_SLTZ | PS_R_SGTZ},
     {"sltu",  ENC_F7(0b0000000) | ENC_F3(0b011) | ENC_OP(0b0110011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, PS_R_SNEZ},
@@ -148,7 +148,7 @@ extern const OpInfo UncompressedInsts[] = {
     {"srliw", ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, 0},
     {"sraiw", ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0011011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_I_shift, 0},
     {"addw",  ENC_F7(0b0000000) | ENC_F3(0b000) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
-    {"subw",  ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    {"subw",  ENC_F7(0b0100000) | ENC_F3(0b000) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, PS_R_NEGW},
     {"sllw",  ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
     {"srlw",  ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
     {"sraw",  ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
@@ -318,7 +318,7 @@ char* rv_disass_b(unsigned int inst, const OpInfo* info) {
     imm |= (inst & 0x80) << 4;
     imm |= (inst & 0xF00) >> 7;
     imm |= (inst & 0x7E000000) >> 20;
-    imm |= MAKE_SEXT_BITS(inst, 12);
+    imm |= MAKE_SEXT_BITS(inst, 13);
 
     if (g_context.UsePsuedoInsts) {
         if (info->pseudoInstFlags & PS_B_BLEZ && rs1 == 0) {
@@ -356,6 +356,16 @@ char* rv_disass_r(unsigned int inst, const OpInfo* info) {
 
     if (g_context.UsePsuedoInsts && info->pseudoInstFlags)
     {
+        if (info->pseudoInstFlags & PS_R_NEG && rs1 == 0) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "neg",  get_abi_name(rd), get_abi_name(rs2));
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
+        if (info->pseudoInstFlags & PS_R_NEGW && rs1 == 0) {
+            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "negw",  get_abi_name(rd), get_abi_name(rs2));
+            assert(size > 0 && (size_t)size < sizeof(output));
+            return strdup(output);
+        }
         if (info->pseudoInstFlags & PS_R_SNEZ && rs1 == 0) {
             int size = snprintf(output, sizeof(output), "%-7s %s, %s", "snez",  get_abi_name(rd), get_abi_name(rs2));
             assert(size > 0 && (size_t)size < sizeof(output));
@@ -404,7 +414,7 @@ char* rv_disass_j(unsigned int inst, const OpInfo* info) {
     imm |= (raw_imm & 0xFF) << 12;
     imm |= ((raw_imm >> 8) & 0x1) << 11;
     imm |= ((raw_imm >> 9) & 0x3FF) << 1;
-    imm |= ((raw_imm >> 18) & 0x1) << 20;
+    imm |= ((raw_imm >> 19) & 0x1) << 20;
     imm |= MAKE_SEXT_BITS(inst, 21);
 
     if (g_context.UsePsuedoInsts && rd == 0) {
