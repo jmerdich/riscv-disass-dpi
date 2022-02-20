@@ -118,7 +118,7 @@ extern const OpInfo UncompressedInsts[] = {
     {"addi",  ENC_F3(0b000) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, PS_I_NOP | PS_I_MV},
     {"slti",  ENC_F3(0b010) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
     {"sltiu", ENC_F3(0b011) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, PS_I_SEQZ},
-    {"xori",  ENC_F3(0b100) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
+    {"xori",  ENC_F3(0b100) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, PS_I_NOT},
     {"ori",   ENC_F3(0b110) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
     {"andi",  ENC_F3(0b111) | ENC_OP(0b0010011), MASK_F3 | MASK_OP, InstLayout_I, 0},
     // shift imm insts skipped in favor of 64-bit variants
