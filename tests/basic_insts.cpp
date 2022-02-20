@@ -84,6 +84,13 @@ bool ShouldSkip(const std::string& llvms) {
         "dret",
         "mret",
         "wfi",
+        "rdinstret",
+        "rdcycle",
+        "rdtime",
+        "frrm",
+        "fsrm",
+        "frflags",
+        "fsflags",
 
         // I'm dealing with you later
         "unknown",
