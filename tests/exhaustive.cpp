@@ -1,18 +1,103 @@
 #include "gtest/gtest.h"
 #include "test_common.h"
 
+#include <atomic>
+#include <deque>
+#include <thread>
+
 #include <llvm-c/Disassembler.h>
 #include <llvm-c/Target.h>
 
-TEST(LiterallyEverything, DISABLED_DontCrash) {
-    for (uint32_t inst = 0; ; inst++) {
-        char* str = rv_disass(inst);
-        rv_free(str);
+constexpr uint64_t FullRangeStart = 0;
+constexpr uint64_t FullRangeEnd   = 0x100000000;
 
-        if (inst == 0xFFFFFFFF) {
-            break;
+class ExhaustiveThreadPool {
+public:
+    ExhaustiveThreadPool(uint64_t start, uint64_t end /* exclusive */, uint64_t numThreads=0)
+     : m_min(start),
+       m_max(end),
+       m_numThreads(numThreads),
+       m_chunksStarted(0),
+       m_chunksDone(0),
+       m_valid(true)
+    {
+        if (m_numThreads == 0) 
+        {
+            m_numThreads = std::thread::hardware_concurrency();
+        }
+
+        m_chunkSize = 8192; // Better heuristic probably needed. This makes sense for per-inst tests.
+        m_numChunks = (m_max + m_chunkSize - 1 - m_min)  / m_chunkSize; // Divide, rounding up.
+    }
+
+    template <typename F>
+    void run(F fn) {
+        assert(m_chunksStarted == 0);
+        for (uint32_t i = 0; i < m_numThreads; i++) {
+            m_activeThreads.push_back(std::thread(&ExhaustiveThreadPool::worker<F>, this, fn));
+        }
+
+        float percentDone = 0.0;
+        while (m_valid && m_chunksDone < m_numChunks) {
+            float newPercentDone = static_cast<float>(m_chunksDone) * 100 / m_numChunks;
+            if (newPercentDone - percentDone > 1.0) {
+                printf("...%2.1f%%\n", newPercentDone);
+                percentDone = newPercentDone; // Only store printed percent, that's what user cares about.
+            }
+        }
+
+        for (auto& activeThread : m_activeThreads) {
+            activeThread.join();
         }
     }
+private:
+    template <typename F>
+    void worker(F fn) {
+        while (m_valid) {
+            uint64_t chunkIdx = m_chunksStarted.fetch_add(1);
+            if (chunkIdx >= m_numChunks)
+            {
+                return;
+            }
+            uint64_t chunkMin = m_min + (chunkIdx * m_chunkSize);
+            uint64_t chunkMax = std::min(m_min + ((chunkIdx + 1) * m_chunkSize), m_max);
+            for (uint64_t trial = chunkMin; trial < chunkMax; trial++)
+            {
+                EXPECT_NO_THROW({
+                    fn(trial);
+                });
+                if (testing::Test::HasFailure()) {
+                    // In the future, we might make output more thread friendly but not today.
+                    m_valid = false;
+                }
+                if (m_valid == false) {
+                    return;
+                }
+            }
+            m_chunksDone++;
+        }
+    }
+
+
+    uint64_t m_min;
+    uint64_t m_max;
+    uint64_t m_numChunks;
+    uint64_t m_numThreads;
+    uint64_t m_chunkSize;
+    std::deque<std::thread> m_activeThreads;
+    std::atomic_uint64_t m_chunksStarted;
+    std::atomic_uint64_t m_chunksDone;
+    std::atomic_bool m_valid;
+};
+
+
+TEST(LiterallyEverything, DISABLED_DontCrash)
+{
+    ExhaustiveThreadPool threads(FullRangeStart, FullRangeEnd);
+    threads.run([] (uint64_t inst) {
+        char* str = rv_disass(inst);
+        rv_free(str);
+    });
 }
 
 LLVMDisasmContextRef GetLlvmDisassembler() {
@@ -107,32 +192,24 @@ uint32_t get_start_point() {
 TEST(LiterallyEverything, DISABLED_CompareToLlvm) {
     LLVMDisasmContextRef dis = GetLlvmDisassembler();
     rv_set_option("UsePsuedoInsts", true);
-    for (uint32_t inst = get_start_point(); ; inst++) {
-        char* rv_inst_raw = rv_disass(inst);
-        std::string rv_inst = normalize_ws(rv_inst_raw);
+    ExhaustiveThreadPool threads(get_start_point(), FullRangeEnd);
+    threads.run([&](uint64_t inst) {
+        std::string rv_inst = normalize_ws(rv_disass_str(inst));
         std::string llvm_inst = normalize_ws(GetDisassFromLlvm(dis, inst));
 
         if (llvm_inst == "") {
             llvm_inst = "unknown";
         }
 
-        if (!ShouldSkip(llvm_inst)) {
+        if (!ShouldSkip(llvm_inst) && rv_inst != llvm_inst) {
             ASSERT_EQ(rv_inst, llvm_inst) << "when disassembling " << inst;
         }
-
-        rv_free(rv_inst_raw);
-        if ((inst % 0x1000000) == 0) {
-            printf("...0x%08x\n", inst);
-        }
-
-        if (inst == 0xFFFFFFFF) {
-            break;
-        }
-    }
+    });
 }
 
 TEST(LiterallyEverything, DISABLED_NoOverlap) {
-    for (uint32_t inst = 0; ; inst++) {
+    ExhaustiveThreadPool threads(FullRangeStart, FullRangeEnd);
+    threads.run([&](uint64_t inst) {
         int matches = 0;
         for (uint32_t info_idx = 0; info_idx < UncompressedInstsSize; info_idx++) {
             const OpInfo* info = &UncompressedInsts[info_idx];
@@ -142,15 +219,7 @@ TEST(LiterallyEverything, DISABLED_NoOverlap) {
         }
 
         ASSERT_LT(matches, 2) << "Instruction " << inst << " matches more than one op!";
-
-        if ((inst % 0x100000) == 0) {
-            printf("...0x%08x\n", inst);
-        }
-
-        if (inst == 0xFFFFFFFF) {
-            break;
-        }
-    }
+    });
 }
 
 int main(int argc, char **argv) {

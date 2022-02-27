@@ -21,7 +21,10 @@ enum InstLayout {
     InstLayout_R_shamt5,
     InstLayout_R_shamt6,
     InstLayout_I,
+    InstLayout_I_jump,
+    InstLayout_I_load,
     InstLayout_I_fence,
+    InstLayout_I_shift,
     InstLayout_S,
     InstLayout_B,
     InstLayout_U,
@@ -29,11 +32,11 @@ enum InstLayout {
     InstLayout_None,
 };
 struct OpInfo {
-    const char* name;
+    const char  name[8];
     uint32_t    searchVal;
     uint32_t    searchMask;
     InstLayout  layout;
-    void*       pseudoInsts;
+    uint32_t    pseudoInstFlags;
 };
 extern const OpInfo UncompressedInsts[];
 extern const uint32_t UncompressedInstsSize;
