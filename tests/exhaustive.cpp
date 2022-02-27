@@ -170,8 +170,7 @@ bool ShouldSkip(const std::string& llvms) {
         "fsflags",
 
         // I'm dealing with you later
-        "unknown",
-        "fence",
+        "sfence",
     };
     for (const auto& tv : blacklist) {
         if (llvms.find(tv) != std::string::npos) {
@@ -189,7 +188,7 @@ uint32_t get_start_point() {
     return start;
 }
 
-TEST(LiterallyEverything, DISABLED_CompareToLlvm) {
+TEST(LiterallyEverything, CompareToLlvm) {
     LLVMDisasmContextRef dis = GetLlvmDisassembler();
     rv_set_option("UsePsuedoInsts", true);
     ExhaustiveThreadPool threads(get_start_point(), FullRangeEnd);

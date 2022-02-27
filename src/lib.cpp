@@ -49,8 +49,11 @@ enum InstLayout {
 #define SHIFT_RS2  20
 #define SHIFT_SHMT 20
 #define SHIFT_I12  20
+#define SHIFT_SUC  20
+#define SHIFT_PRED 24
 #define SHIFT_F7   25
 #define SHIFT_F6   26
+#define SHIFT_FM   28
 
 #define MASK_OP   0x0000007F
 #define MASK_RD   0x00000F80
@@ -62,6 +65,9 @@ enum InstLayout {
 #define MASK_SHMT 0x03F00000
 #define MASK_I12  0xFFF00000
 #define MASK_I20  0xFFFFF000
+#define MASK_SUC  0x00F00000
+#define MASK_PRED 0x0F000000
+#define MASK_FM   0xF0000000
 #define MASK_ALL  0xFFFFFFFF
 
 #define ENC_OP(x) ((x) << SHIFT_OP)
@@ -78,6 +84,9 @@ enum InstLayout {
 #define DEC_SHMT(x) (((x) & MASK_SHMT) >> SHIFT_SHMT)
 #define DEC_I12(x)  (((x) & MASK_I12)  >> SHIFT_I12)
 #define DEC_I20(x)  (((x) & MASK_I20)  >> SHIFT_I20)
+#define DEC_PRED(x) (((x) & MASK_PRED)   >> SHIFT_PRED)
+#define DEC_SUC(x)  (((x) & MASK_SUC)   >> SHIFT_SUC)
+#define DEC_FM(x)   (((x) & MASK_FM)   >> SHIFT_FM)
 
 #define MAKE_SEXT_BITS(inst, bits) (((int32_t)((inst) & 0x80000000)) >> (32 - bits))
 
@@ -290,8 +299,51 @@ char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
 }
 
 char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
-    // TODO: what the heck are these arguments?
-    return strdup("fence unknown, unknown");
+    uint32_t rd = DEC_RD(inst);
+    uint32_t rs1 = DEC_RS1(inst);
+    uint32_t fm = DEC_FM(inst);
+
+    if (g_context.UsePsuedoInsts && inst == 0x0ff0000f) {
+        return strdup("fence");
+    }
+    if (inst == 0x8330000f) {
+        if (g_context.UsePsuedoInsts) {
+            return strdup("fence.tso");
+        } else {
+            return strdup("fence.tso rw, rw");
+        }
+    }
+
+    // These are reserved insts.
+    if (rd != 0 || rs1 != 0 || fm != 0) {
+        return strdup("unknown");
+    }
+    const char* bitnames = "iorw";
+
+    char predbuf[5] = {};
+    uint32_t pred = DEC_PRED(inst);
+    for (int i = 0; i < 4; i++) {
+        if (pred & (1 << (3-i))) {
+            predbuf[strlen(predbuf)] = bitnames[i];
+        }
+    }
+
+    char sucbuf[5] = {};
+    uint32_t suc = DEC_SUC(inst);
+    for (int i = 0; i < 4; i++) {
+        if (suc & (1 << (3-i))) {
+            sucbuf[strlen(sucbuf)] = bitnames[i];
+        }
+    }
+
+    const char* predstr = (predbuf[0] != 0) ? predbuf : "unknown";
+    const char* sucstr = (sucbuf[0] != 0) ? sucbuf : "unknown";
+
+    char output[64] = {};
+    int size = snprintf(output, sizeof(output), "%-7s %s, %s", info->name, predstr, sucstr);
+    assert(size > 0 && (size_t)size < sizeof(output));
+
+    return strdup(output);
 }
 
 char* rv_disass_u(unsigned int inst, const OpInfo* info) {

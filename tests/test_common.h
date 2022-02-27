@@ -2,6 +2,7 @@
 extern char* rv_disass(unsigned int inst);
 extern void rv_free(char* str);
 void rv_set_option(const char* name, bool enabled);
+void rv_reset_options();
 
 // Inline wrapper so we don't have to manually free
 // C interfaces don't have destructors
