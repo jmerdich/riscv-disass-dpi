@@ -1,6 +1,7 @@
 //  SPDX-FileCopyrightText: 2022 Jake Merdich <jake@merdich.com>
 //  SPDX-License-Identifier: Unlicense
 
+#include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
@@ -190,35 +191,61 @@ DPI_DLLESPEC const OpInfo UncompressedInsts[] = {
 
 DPI_DLLESPEC const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
 
-static const char* get_reg_name(uint8_t reg) {
-    const char* RegNames[] = {
-       "zero",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",
-        "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19",
-        "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29",
-        "x30", "x31"
-    };
-
-    return RegNames[reg % 32];
-}
-
 static const char* get_abi_name(uint8_t reg) {
     if (g_context.NoAbiNames) {
-        return get_reg_name(reg);
-    }
-    const char* RegNames[] = {
-        "zero", "ra", "sp", "gp", "tp", "t0",  "t1",  "t2", "s0", "s1",
-          "a0", "a1", "a2", "a3", "a4", "a5",  "a6",  "a7", "s2", "s3",
-          "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4",
-          "t5", "t6"
-    };
-    // s0 = fp?
+        const char* RegNames[] = {
+           "zero",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",
+            "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19",
+            "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29",
+            "x30", "x31"
+        };
 
-    return RegNames[reg % 32];
+        return RegNames[reg % 32];
+    } else {
+        const char* RegNames[] = {
+            "zero", "ra", "sp", "gp", "tp", "t0",  "t1",  "t2", "s0", "s1",
+            "a0", "a1", "a2", "a3", "a4", "a5",  "a6",  "a7", "s2", "s3",
+            "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", "t3", "t4",
+            "t5", "t6"
+        };
+        // s0 = fp?
+
+        return RegNames[reg % 32];
+    }
 }
 
-static char* rv_disass_i(unsigned int inst, const OpInfo* info) {
-    char output[64] = {0};
+static char* mprintf(const char* fmt, ...) {
+    va_list vargs1;
+    va_start(vargs1, fmt);
+    int len = vsnprintf(NULL,0, fmt, vargs1);
+    va_end(vargs1);
 
+    if (len < 0) {
+        return NULL;
+    }
+
+    char* outstr = malloc(len+1);
+    if (outstr != NULL) {
+        va_list vargs2;
+        va_start(vargs2, fmt);
+        vsnprintf(outstr, len+1, fmt, vargs2);
+        va_end(vargs2);
+    }
+
+    return outstr;
+}
+
+#define rv_fmt_const(name) strdup((name))
+#define rv_fmt_i(inst, imm)              mprintf("%-7s %d",         (inst), (int32_t)(imm))
+#define rv_fmt_r(inst, r1)               mprintf("%-7s %s",         (inst), get_abi_name((r1)))
+#define rv_fmt_r_i(inst, r1, imm)        mprintf("%-7s %s, %d",     (inst), get_abi_name((r1)), (int32_t)(imm))
+#define rv_fmt_r_r(inst, r1, r2)         mprintf("%-7s %s, %s",     (inst), get_abi_name((r1)), get_abi_name((r2)))
+#define rv_fmt_r_r_i(inst, r1, r2, imm)  mprintf("%-7s %s, %s, %d", (inst), get_abi_name((r1)), get_abi_name((r2)), (int32_t)(imm))
+#define rv_fmt_r_r_r(inst, r1, r2, r3)   mprintf("%-7s %s, %s, %s", (inst), get_abi_name((r1)), get_abi_name((r2)), get_abi_name((r3)))
+#define rv_fmt_ir(inst, immr1, r1)       mprintf("%-7s %d(%s)",     (inst), (immr1), get_abi_name((r1)))
+#define rv_fmt_r_ir(inst, r1, immr2, r2) mprintf("%-7s %s, %d(%s)", (inst), get_abi_name((r1)), (immr2), get_abi_name((r2)))
+
+static char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     uint32_t rd = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t imm = DEC_I12(inst);
@@ -227,59 +254,35 @@ static char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     imm |= MAKE_SEXT_BITS(inst, 12);
 
     if (g_context.UsePsuedoInsts && info->pseudoInstFlags) {
-        if ((info->pseudoInstFlags & PS_I_NOP) && 
-            (rd == 0) && (rs1 == 0) && (imm == 0)) {
-            return strdup("nop");
+        if ((info->pseudoInstFlags & PS_I_NOP) && (rd == 0) && (rs1 == 0) && (imm == 0)) {
+            return rv_fmt_const("nop");
         }
-        if ((info->pseudoInstFlags & PS_I_MV) && 
-            (imm == 0)) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "mv",  get_abi_name(rd), get_abi_name(rs1));
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+        if ((info->pseudoInstFlags & PS_I_MV) && (imm == 0)) {
+            return rv_fmt_r_r("mv", rd, rs1);
         }
-        if ((info->pseudoInstFlags & PS_I_NOT) && 
-            (imm == (uint32_t)-1)) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "not",  get_abi_name(rd), get_abi_name(rs1));
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+        if ((info->pseudoInstFlags & PS_I_NOT) && (imm == (uint32_t)-1)) {
+            return rv_fmt_r_r("not", rd, rs1);
         }
-        if ((info->pseudoInstFlags & PS_I_SEXT) && 
-            (imm == 0)) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "sext.w",  get_abi_name(rd), get_abi_name(rs1));
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+        if ((info->pseudoInstFlags & PS_I_SEXT) && (imm == 0)) {
+            return rv_fmt_r_r("sext.w", rd, rs1);
         }
-        if ((info->pseudoInstFlags & PS_I_SEQZ) && 
-            (imm == 1)) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "seqz",  get_abi_name(rd), get_abi_name(rs1));
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+        if ((info->pseudoInstFlags & PS_I_SEQZ) && (imm == 1)) {
+            return rv_fmt_r_r("seqz", rd, rs1);
         }
     }
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rd), get_abi_name(rs1), (int32_t)imm);
-    assert(size > 0 && (size_t)size < sizeof(output));
-
-    char* str = strdup(output);
-    return str;
+    return rv_fmt_r_r_i(info->name, rd, rs1, imm);
 }
 
 static char* rv_disass_i_shift(unsigned int inst, const OpInfo* info) {
-    char output[64] = {0};
-
     uint32_t rd = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t imm = DEC_SHMT(inst);
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rd), get_abi_name(rs1), (int32_t)imm);
-    assert(size > 0 && (size_t)size < sizeof(output));
-
-    return strdup(output);
+    return rv_fmt_r_r_i(info->name, rd, rs1, imm);
 }
 
 static char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
-    char output[64] = {0};
-
     uint32_t rd = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t imm = DEC_I12(inst);
@@ -287,30 +290,26 @@ static char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
     // Do sign extension of immediate
     imm |= MAKE_SEXT_BITS(inst, 12);
 
-    int size = 0;
-    if (rd == 0 && imm == 0 && rs1 == 1 && g_context.UsePsuedoInsts) {
-        return strdup("ret");
-    } else if (rd == 0 && imm == 0 && g_context.UsePsuedoInsts) {
-        size = snprintf(output, sizeof(output), "%-7s %s", "jr",  get_abi_name(rs1));
-    } else if (rd == 0 && g_context.UsePsuedoInsts) {
-        size = snprintf(output, sizeof(output), "%-7s %d(%s)", "jr", (int32_t)imm, get_abi_name(rs1));
-    } else if (rd == 1 && imm == 0 && g_context.UsePsuedoInsts) {
-        size = snprintf(output, sizeof(output), "%-7s %s", info->name,  get_abi_name(rs1));
-    } else if (rd == 1 && g_context.UsePsuedoInsts) {
-        size = snprintf(output, sizeof(output), "%-7s %d(%s)", info->name, (int32_t)imm, get_abi_name(rs1));
-    } else if (imm == 0 && g_context.UsePsuedoInsts) {
-        size = snprintf(output, sizeof(output), "%-7s %s, %s", info->name,  get_abi_name(rd), get_abi_name(rs1));
-    } else {
-        size = snprintf(output, sizeof(output), "%-7s %s, %d(%s)", info->name,  get_abi_name(rd), (int32_t)imm, get_abi_name(rs1));
+    if (g_context.UsePsuedoInsts) {
+        if (rd == 0 && imm == 0 && rs1 == 1) {
+            return rv_fmt_const("ret");
+        } else if (rd == 0 && imm == 0) {
+            return rv_fmt_r("jr", rs1);
+        } else if (rd == 0) {
+            return rv_fmt_ir("jr", imm, rs1);
+        } else if (rd == 1 && imm == 0) {
+            return rv_fmt_r(info->name, rs1);
+        } else if (rd == 1) {
+            return rv_fmt_ir(info->name, imm, rs1);
+        } else if (imm == 0) {
+            return rv_fmt_r_r(info->name, rd, rs1);
+        }
     }
-    assert(size > 0 && (size_t)size < sizeof(output));
 
-    return strdup(output);
+    return rv_fmt_r_ir(info->name, rd, imm, rs1);
 }
 
 static char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
-    char output[64] = {0};
-
     uint32_t rd = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t imm = DEC_I12(inst);
@@ -318,10 +317,7 @@ static char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
     // Do sign extension of immediate
     imm |= MAKE_SEXT_BITS(inst, 12);
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %d(%s)", info->name,  get_abi_name(rd), (int32_t)imm, get_abi_name(rs1));
-    assert(size > 0 && (size_t)size < sizeof(output));
-
-    return strdup(output);
+    return rv_fmt_r_ir(info->name, rd, imm, rs1);
 }
 
 static char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
@@ -330,19 +326,19 @@ static char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
     uint32_t fm = DEC_FM(inst);
 
     if (g_context.UsePsuedoInsts && inst == 0x0ff0000f) {
-        return strdup("fence");
+        return rv_fmt_const("fence");
     }
     if (inst == 0x8330000f) {
         if (g_context.UsePsuedoInsts) {
-            return strdup("fence.tso");
+            return rv_fmt_const("fence.tso");
         } else {
-            return strdup("fence.tso rw, rw");
+            return rv_fmt_const("fence.tso rw, rw");
         }
     }
 
     // These are reserved insts.
     if (rd != 0 || rs1 != 0 || fm != 0) {
-        return strdup("unknown");
+        return rv_fmt_const("unknown");
     }
     const char* bitnames = "iorw";
 
@@ -365,28 +361,17 @@ static char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
     const char* predstr = (predbuf[0] != 0) ? predbuf : "unknown";
     const char* sucstr = (sucbuf[0] != 0) ? sucbuf : "unknown";
 
-    char output[64] = {0};
-    int size = snprintf(output, sizeof(output), "%-7s %s, %s", info->name, predstr, sucstr);
-    assert(size > 0 && (size_t)size < sizeof(output));
-
-    return strdup(output);
+    return mprintf("%-7s %s, %s", info->name, predstr, sucstr);
 }
 
 static char* rv_disass_u(unsigned int inst, const OpInfo* info) {
-    char output[64] = {0};
-
     uint32_t rd = DEC_RD(inst);
     uint32_t imm = DEC_I20(inst);
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %d", info->name,  get_abi_name(rd), (int32_t)imm);
-    assert(size > 0 && (size_t)size < sizeof(output));
-
-    return strdup(output);
+    return rv_fmt_r_i(info->name, rd, imm);
 }
 
 static char* rv_disass_b(unsigned int inst, const OpInfo* info) {
-    char output[64] = {0};
-
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t rs2 = DEC_RS2(inst);
 
@@ -400,34 +385,23 @@ static char* rv_disass_b(unsigned int inst, const OpInfo* info) {
 
     if (g_context.UsePsuedoInsts) {
         if (info->pseudoInstFlags & PS_B_BLEZ && rs1 == 0) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %d", "blez",  get_abi_name(rs2), (int32_t)imm);
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+            return rv_fmt_r_i("blez", rs2, imm);
         }
         if (info->pseudoInstFlags & PS_B_ANY_Z && rs2 == 0) {
             char newinst[8] = {0};
             strcpy(newinst, info->name);
             strcat(newinst, "z");
-            int size = snprintf(output, sizeof(output), "%-7s %s, %d", newinst,  get_abi_name(rs1), (int32_t)imm);
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+            return rv_fmt_r_i(newinst, rs1, imm);
         }
         if (info->pseudoInstFlags & PS_B_BGTZ && rs1 == 0) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %d", "bgtz",  get_abi_name(rs2), (int32_t)imm);
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+            return rv_fmt_r_i("bgtz", rs2, imm);
         }
     }
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rs1), get_abi_name(rs2), (int32_t)imm);
-    assert(size > 0 && (size_t)size < sizeof(output));
-
-    return strdup(output);
+    return rv_fmt_r_r_i(info->name, rs1, rs2, imm);
 }
 
 static char* rv_disass_r(unsigned int inst, const OpInfo* info) {
-    char output[64] = {0};
-
     uint32_t rd  = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t rs2 = DEC_RS2(inst);
@@ -435,55 +409,35 @@ static char* rv_disass_r(unsigned int inst, const OpInfo* info) {
     if (g_context.UsePsuedoInsts && info->pseudoInstFlags)
     {
         if (info->pseudoInstFlags & PS_R_NEG && rs1 == 0) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "neg",  get_abi_name(rd), get_abi_name(rs2));
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+            return rv_fmt_r_r("neg", rd, rs2);
         }
         if (info->pseudoInstFlags & PS_R_NEGW && rs1 == 0) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "negw",  get_abi_name(rd), get_abi_name(rs2));
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+            return rv_fmt_r_r("negw", rd, rs2);
         }
         if (info->pseudoInstFlags & PS_R_SNEZ && rs1 == 0) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "snez",  get_abi_name(rd), get_abi_name(rs2));
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+            return rv_fmt_r_r("snez", rd, rs2);
         }
         if (info->pseudoInstFlags & PS_R_SLTZ && rs2 == 0) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "sltz",  get_abi_name(rd), get_abi_name(rs1));
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+            return rv_fmt_r_r("sltz", rd, rs1);
         }
         if (info->pseudoInstFlags & PS_R_SGTZ && rs1 == 0) {
-            int size = snprintf(output, sizeof(output), "%-7s %s, %s", "sgtz",  get_abi_name(rd), get_abi_name(rs2));
-            assert(size > 0 && (size_t)size < sizeof(output));
-            return strdup(output);
+            return rv_fmt_r_r("sgtz", rd, rs2);
         }
 
     }
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %s, %s", info->name,  get_abi_name(rd), get_abi_name(rs1), get_abi_name(rs2));
-    assert(size > 0 && (size_t)size < sizeof(output));
-
-    return strdup(output);
+    return rv_fmt_r_r_r(info->name, rd, rs1, rs2);
 }
 
 static char* rv_disass_s(unsigned int inst, const OpInfo* info) {
-    char output[64] = {0};
-
     uint32_t imm = MAKE_SEXT_BITS(inst, 12) | (DEC_F7(inst) << 5) | DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t rs2 = DEC_RS2(inst);
 
-    int size = snprintf(output, sizeof(output), "%-7s %s, %d(%s)", info->name,  get_abi_name(rs2), (int32_t)imm, get_abi_name(rs1));
-    assert(size > 0 && (size_t)size < sizeof(output));
-
-    return strdup(output);
+    return rv_fmt_r_ir(info->name, rs2, imm, rs1);
 }
 
 static char* rv_disass_j(unsigned int inst, const OpInfo* info) {
-    char output[64] = {0};
-
     uint32_t rd  = DEC_RD(inst);
     uint32_t raw_imm = DEC_I20(inst);
 
@@ -495,23 +449,19 @@ static char* rv_disass_j(unsigned int inst, const OpInfo* info) {
     imm |= ((raw_imm >> 19) & 0x1) << 20;
     imm |= MAKE_SEXT_BITS(inst, 21);
 
-    if (g_context.UsePsuedoInsts && rd == 0) {
-        int size = snprintf(output, sizeof(output), "%-7s %d", "j",  (int32_t)imm);
-        assert(size > 0 && (size_t)size < sizeof(output));
-    } else if (g_context.UsePsuedoInsts && rd == 1) {
-        int size = snprintf(output, sizeof(output), "%-7s %d", "jal",  (int32_t)imm);
-        assert(size > 0 && (size_t)size < sizeof(output));
-    } else {
-        int size = snprintf(output, sizeof(output), "%-7s %s, %d", info->name,  get_abi_name(rd), (int32_t)imm);
-        assert(size > 0 && (size_t)size < sizeof(output));
+    if (g_context.UsePsuedoInsts) {
+        if (rd == 0) {
+            return rv_fmt_i("j", imm);
+        } else if (rd == 1) {
+            return rv_fmt_i("jal", imm);
+        }
     }
-
-    return strdup(output);
+    return rv_fmt_r_i(info->name, rd, imm);
 }
 
 static char* rv_disass_none(unsigned int _dummy, const OpInfo* info) {
     (void)_dummy;
-    return strdup(info->name);
+    return rv_fmt_const(info->name);
 }
 
 static char* rv_disass_impl(unsigned int inst) {
@@ -523,37 +473,26 @@ static char* rv_disass_impl(unsigned int inst) {
             switch (info->layout) {
                 case InstLayout_B:
                     return rv_disass_b(inst, info);
-                    break;
                 case InstLayout_I:
                     return rv_disass_i(inst, info);
-                    break;
                 case InstLayout_I_jump:
                     return rv_disass_i_jump(inst, info);
-                    break;
                 case InstLayout_I_load:
                     return rv_disass_i_load(inst, info);
-                    break;
                 case InstLayout_I_shift:
                     return rv_disass_i_shift(inst, info);
-                    break;
                 case InstLayout_I_fence:
                     return rv_disass_i_fence(inst, info);
-                    break;
                 case InstLayout_U:
                     return rv_disass_u(inst, info);
-                    break;
                 case InstLayout_S:
                     return rv_disass_s(inst, info);
-                    break;
                 case InstLayout_R:
                     return rv_disass_r(inst, info);
-                    break;
                 case InstLayout_J:
                     return rv_disass_j(inst, info);
-                    break;
                 case InstLayout_None:
                     return rv_disass_none(inst, info);
-                    break;
                 default:
                     // not implemented :(
                     break;
@@ -561,7 +500,7 @@ static char* rv_disass_impl(unsigned int inst) {
             break;
         }
     }
-    return strdup("unknown");
+    return rv_fmt_const("unknown");
 }
 
 DPI_DLLESPEC const char* rv_disass(int raw_inst) {
