@@ -119,7 +119,7 @@ LLVMDisasmContextRef GetLlvmDisassembler() {
 }
 
 std::string GetDisassFromLlvm(LLVMDisasmContextRef dis, uint32_t inst) {
-    char buffer[128] = {};
+    char buffer[128] = {0};
     LLVMDisasmInstruction(dis, reinterpret_cast<uint8_t*>(&inst), sizeof(inst), 0,
                           buffer, sizeof(buffer));
 

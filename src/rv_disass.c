@@ -62,10 +62,10 @@
 #define MASK_FM   0xF0000000
 #define MASK_ALL  0xFFFFFFFF
 
-#define ENC_OP(x) ((x) << SHIFT_OP)
-#define ENC_F3(x) ((x) << SHIFT_F3)
-#define ENC_F7(x) ((x) << SHIFT_F7)
-#define ENC_F6(x) ((x) << SHIFT_F6)
+#define ENC_OP(x) ((__extension__ (x)) << SHIFT_OP)
+#define ENC_F3(x) ((__extension__ (x)) << SHIFT_F3)
+#define ENC_F7(x) ((__extension__ (x)) << SHIFT_F7)
+#define ENC_F6(x) ((__extension__ (x)) << SHIFT_F6)
 
 #define DEC_OP(x)   (((x) & MASK_OP)   >> SHIFT_OP)
 #define DEC_F3(x)   (((x) & MASK_F3)   >> SHIFT_F3)
@@ -217,7 +217,7 @@ static const char* get_abi_name(uint8_t reg) {
 }
 
 static char* rv_disass_i(unsigned int inst, const OpInfo* info) {
-    char output[64] = {};
+    char output[64] = {0};
 
     uint32_t rd = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
@@ -265,7 +265,7 @@ static char* rv_disass_i(unsigned int inst, const OpInfo* info) {
 }
 
 static char* rv_disass_i_shift(unsigned int inst, const OpInfo* info) {
-    char output[64] = {};
+    char output[64] = {0};
 
     uint32_t rd = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
@@ -278,7 +278,7 @@ static char* rv_disass_i_shift(unsigned int inst, const OpInfo* info) {
 }
 
 static char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
-    char output[64] = {};
+    char output[64] = {0};
 
     uint32_t rd = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
@@ -309,7 +309,7 @@ static char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
 }
 
 static char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
-    char output[64] = {};
+    char output[64] = {0};
 
     uint32_t rd = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
@@ -346,7 +346,7 @@ static char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
     }
     const char* bitnames = "iorw";
 
-    char predbuf[5] = {};
+    char predbuf[5] = {0};
     uint32_t pred = DEC_PRED(inst);
     for (int i = 0; i < 4; i++) {
         if (pred & (1 << (3-i))) {
@@ -354,7 +354,7 @@ static char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
         }
     }
 
-    char sucbuf[5] = {};
+    char sucbuf[5] = {0};
     uint32_t suc = DEC_SUC(inst);
     for (int i = 0; i < 4; i++) {
         if (suc & (1 << (3-i))) {
@@ -365,7 +365,7 @@ static char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
     const char* predstr = (predbuf[0] != 0) ? predbuf : "unknown";
     const char* sucstr = (sucbuf[0] != 0) ? sucbuf : "unknown";
 
-    char output[64] = {};
+    char output[64] = {0};
     int size = snprintf(output, sizeof(output), "%-7s %s, %s", info->name, predstr, sucstr);
     assert(size > 0 && (size_t)size < sizeof(output));
 
@@ -373,7 +373,7 @@ static char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
 }
 
 static char* rv_disass_u(unsigned int inst, const OpInfo* info) {
-    char output[64] = {};
+    char output[64] = {0};
 
     uint32_t rd = DEC_RD(inst);
     uint32_t imm = DEC_I20(inst);
@@ -385,7 +385,7 @@ static char* rv_disass_u(unsigned int inst, const OpInfo* info) {
 }
 
 static char* rv_disass_b(unsigned int inst, const OpInfo* info) {
-    char output[64] = {};
+    char output[64] = {0};
 
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t rs2 = DEC_RS2(inst);
@@ -405,7 +405,7 @@ static char* rv_disass_b(unsigned int inst, const OpInfo* info) {
             return strdup(output);
         }
         if (info->pseudoInstFlags & PS_B_ANY_Z && rs2 == 0) {
-            char newinst[8] = {};
+            char newinst[8] = {0};
             strcpy(newinst, info->name);
             strcat(newinst, "z");
             int size = snprintf(output, sizeof(output), "%-7s %s, %d", newinst,  get_abi_name(rs1), (int32_t)imm);
@@ -426,7 +426,7 @@ static char* rv_disass_b(unsigned int inst, const OpInfo* info) {
 }
 
 static char* rv_disass_r(unsigned int inst, const OpInfo* info) {
-    char output[64] = {};
+    char output[64] = {0};
 
     uint32_t rd  = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
@@ -469,7 +469,7 @@ static char* rv_disass_r(unsigned int inst, const OpInfo* info) {
 }
 
 static char* rv_disass_s(unsigned int inst, const OpInfo* info) {
-    char output[64] = {};
+    char output[64] = {0};
 
     uint32_t imm = MAKE_SEXT_BITS(inst, 12) | (DEC_F7(inst) << 5) | DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
@@ -482,7 +482,7 @@ static char* rv_disass_s(unsigned int inst, const OpInfo* info) {
 }
 
 static char* rv_disass_j(unsigned int inst, const OpInfo* info) {
-    char output[64] = {};
+    char output[64] = {0};
 
     uint32_t rd  = DEC_RD(inst);
     uint32_t raw_imm = DEC_I20(inst);
@@ -510,6 +510,7 @@ static char* rv_disass_j(unsigned int inst, const OpInfo* info) {
 }
 
 static char* rv_disass_none(unsigned int _dummy, const OpInfo* info) {
+    (void)_dummy;
     return strdup(info->name);
 }
 
