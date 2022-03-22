@@ -8,7 +8,10 @@
 #include <stdio.h>
 #include <assert.h>
 
-enum InstLayout {
+#include "svdpi.h"
+DPI_DLLESPEC
+
+typedef enum {
     InstLayout_R,
     InstLayout_R_shamt5,
     InstLayout_R_shamt6,
@@ -22,7 +25,7 @@ enum InstLayout {
     InstLayout_U,
     InstLayout_J,
     InstLayout_None,
-};
+} InstLayout;
 
 // Psuedoinst flags (per InstLayout)
 #define PS_I_NOP  (1 << 0)
@@ -90,20 +93,33 @@ enum InstLayout {
 
 #define MAKE_SEXT_BITS(inst, bits) (((int32_t)((inst) & 0x80000000)) >> (32 - bits))
 
-struct Context {
-    bool  UsePsuedoInsts;
-    bool  NoAbiNames;
-} g_context = {};
+typedef struct {
+    bool  UsePsuedoInsts; // Emits known pseudo-opcodes instead of raw insts.
+    bool  NoAbiNames;     // Always use register numbers rather than names
+    bool  NotThreadSafe;  // Disassembled outputs are freed on the next call
+                          // (horrible ugly nasty hack because some implementations don't
+                          // give you back the same string for free'ing)
+} Context;
+Context g_context = {
+    false,
+    false,
+#ifdef VIVADO
+    true,
+#else
+    false,
+#endif
+};
 
-struct OpInfo {
+typedef struct {
     const char  name[8];
     uint32_t    searchVal;
     uint32_t    searchMask;
     InstLayout  layout;
     uint32_t    pseudoInstFlags;
-};
+} OpInfo;
 
-extern const OpInfo UncompressedInsts[] = {
+extern const OpInfo UncompressedInsts[];
+const OpInfo UncompressedInsts[] = {
     // =========================================
     // RV32I Base Instruction Set
     {"lui",                   ENC_OP(0b0110111),           MASK_OP, InstLayout_U, 0},
@@ -163,7 +179,8 @@ extern const OpInfo UncompressedInsts[] = {
     {"sraw",  ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
 };
 
-extern const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
+extern const uint32_t UncompressedInstsSize;
+const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
 
 const char* get_reg_name(uint8_t reg) {
     const char* RegNames[] = {
@@ -235,7 +252,9 @@ char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     int size = snprintf(output, sizeof(output), "%-7s %s, %s, %d", info->name,  get_abi_name(rd), get_abi_name(rs1), (int32_t)imm);
     assert(size > 0 && (size_t)size < sizeof(output));
 
-    return strdup(output);
+    char* str = strdup(output);
+    printf("Asm with ptr %p!\n", str);
+    return str;
 }
 
 char* rv_disass_i_shift(unsigned int inst, const OpInfo* info) {
@@ -483,11 +502,11 @@ char* rv_disass_j(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_none(unsigned int, const OpInfo* info) {
+char* rv_disass_none(unsigned int _dummy, const OpInfo* info) {
     return strdup(info->name);
 }
 
-char* rv_disass(unsigned int inst) {
+const char* rv_disass_impl(unsigned int inst) {
     // Start with a naive search
     // We can choose better algorithms (bsearch, jump table) later.
     for (uint32_t i = 0; i < UncompressedInstsSize; i++) {
@@ -536,9 +555,26 @@ char* rv_disass(unsigned int inst) {
     }
     return strdup("unknown");
 }
+const char* rv_disass(int raw_inst) {
+    uint32_t inst = (uint32_t)raw_inst;
+    static const char* last_char = NULL;
+    const char* disass = rv_disass_impl(inst);
+
+    if (g_context.NotThreadSafe) {
+        if (last_char != NULL) {
+            free(last_char);
+        }
+        last_char = disass;
+    }
+
+    return disass;
+}
 
 void rv_free(char* str) {
-    free(str);
+    if (!g_context.NotThreadSafe) {
+        // If "not thread safe", we'll auto free on next disass.
+        free(str);
+    }
 }
 
 void rv_set_option(const char* str, bool enabled) {
@@ -548,8 +584,14 @@ void rv_set_option(const char* str, bool enabled) {
     if (strcmp(str, "NoAbiNames") == 0) {
         g_context.NoAbiNames = enabled;
     }
+    if (strcmp(str, "NotThreadSafe") == 0) {
+        g_context.NotThreadSafe = enabled;
+    }
 }
 
 void rv_reset_options() {
-    g_context = {};
+    memset(&g_context, 0, sizeof(g_context));
+#ifdef VIVADO
+    g_context.NotThreadSafe = true;
+#endif
 }

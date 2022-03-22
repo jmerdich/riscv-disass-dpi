@@ -1,3 +1,7 @@
 build/
 
 subprojects/*/
+
+*.pb
+*.log
+*.jou

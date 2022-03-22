@@ -1,21 +1,9 @@
 
+extern "C" {
 extern char* rv_disass(unsigned int inst);
 extern void rv_free(char* str);
 void rv_set_option(const char* name, bool enabled);
 void rv_reset_options();
-
-// Inline wrapper so we don't have to manually free
-// C interfaces don't have destructors
-std::string rv_disass_str(uint32_t inst) {
-    char* cstr = rv_disass(inst);
-    std::string out;
-    if (cstr) {
-        out = cstr;
-    }
-    rv_free(cstr);
-    return out;
-}
-
 // Implementation details
 enum InstLayout {
     InstLayout_R,
@@ -41,3 +29,16 @@ struct OpInfo {
 };
 extern const OpInfo UncompressedInsts[];
 extern const uint32_t UncompressedInstsSize;
+}
+
+// Inline wrapper so we don't have to manually free
+// C interfaces don't have destructors
+std::string rv_disass_str(uint32_t inst) {
+    char* cstr = rv_disass(inst);
+    std::string out;
+    if (cstr) {
+        out = cstr;
+    }
+    rv_free(cstr);
+    return out;
+}
