@@ -13,7 +13,7 @@ fi
 mkdir -p $WORKDIR
 cd $WORKDIR
 
-xsc --gcc_compile_options=-DVIVADO $ROOT/src/lib.c
+xsc --gcc_compile_options=-DVIVADO $ROOT/src/rv_disass.c
 xelab -vlog $TESTDIR/../simple_nop_check.sv -sv -sv_lib dpi -R
 
 echo

@@ -8,24 +8,13 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "svdpi.h"
-DPI_DLLESPEC
-
-typedef enum {
-    InstLayout_R,
-    InstLayout_R_shamt5,
-    InstLayout_R_shamt6,
-    InstLayout_I,
-    InstLayout_I_jump,
-    InstLayout_I_load,
-    InstLayout_I_fence,
-    InstLayout_I_shift,
-    InstLayout_S,
-    InstLayout_B,
-    InstLayout_U,
-    InstLayout_J,
-    InstLayout_None,
-} InstLayout;
+#ifndef DPI_DLLESPEC
+#ifdef _WIN32
+#define DPI_DLLESPEC __declspec(dllexport)
+#else
+#define DPI_DLLESPEC
+#endif
+#endif
 
 // Psuedoinst flags (per InstLayout)
 #define PS_I_NOP  (1 << 0)
@@ -110,6 +99,24 @@ Context g_context = {
 #endif
 };
 
+
+// Begin test interface
+typedef enum {
+    InstLayout_R,
+    InstLayout_R_shamt5,
+    InstLayout_R_shamt6,
+    InstLayout_I,
+    InstLayout_I_jump,
+    InstLayout_I_load,
+    InstLayout_I_fence,
+    InstLayout_I_shift,
+    InstLayout_S,
+    InstLayout_B,
+    InstLayout_U,
+    InstLayout_J,
+    InstLayout_None,
+} InstLayout;
+
 typedef struct {
     const char  name[8];
     uint32_t    searchVal;
@@ -117,9 +124,11 @@ typedef struct {
     InstLayout  layout;
     uint32_t    pseudoInstFlags;
 } OpInfo;
+DPI_DLLESPEC const OpInfo UncompressedInsts[];
+DPI_DLLESPEC const uint32_t UncompressedInstsSize;
+// End test interface
 
-extern const OpInfo UncompressedInsts[];
-const OpInfo UncompressedInsts[] = {
+DPI_DLLESPEC const OpInfo UncompressedInsts[] = {
     // =========================================
     // RV32I Base Instruction Set
     {"lui",                   ENC_OP(0b0110111),           MASK_OP, InstLayout_U, 0},
@@ -179,10 +188,9 @@ const OpInfo UncompressedInsts[] = {
     {"sraw",  ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
 };
 
-extern const uint32_t UncompressedInstsSize;
-const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
+DPI_DLLESPEC const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
 
-const char* get_reg_name(uint8_t reg) {
+static const char* get_reg_name(uint8_t reg) {
     const char* RegNames[] = {
        "zero",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",
         "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19",
@@ -193,7 +201,7 @@ const char* get_reg_name(uint8_t reg) {
     return RegNames[reg % 32];
 }
 
-const char* get_abi_name(uint8_t reg) {
+static const char* get_abi_name(uint8_t reg) {
     if (g_context.NoAbiNames) {
         return get_reg_name(reg);
     }
@@ -208,7 +216,7 @@ const char* get_abi_name(uint8_t reg) {
     return RegNames[reg % 32];
 }
 
-char* rv_disass_i(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t rd = DEC_RD(inst);
@@ -253,11 +261,10 @@ char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     assert(size > 0 && (size_t)size < sizeof(output));
 
     char* str = strdup(output);
-    printf("Asm with ptr %p!\n", str);
     return str;
 }
 
-char* rv_disass_i_shift(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_i_shift(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t rd = DEC_RD(inst);
@@ -270,7 +277,7 @@ char* rv_disass_i_shift(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t rd = DEC_RD(inst);
@@ -301,7 +308,7 @@ char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t rd = DEC_RD(inst);
@@ -317,7 +324,7 @@ char* rv_disass_i_load(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
     uint32_t rd = DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t fm = DEC_FM(inst);
@@ -365,7 +372,7 @@ char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_u(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_u(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t rd = DEC_RD(inst);
@@ -377,7 +384,7 @@ char* rv_disass_u(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_b(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_b(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t rs1 = DEC_RS1(inst);
@@ -418,7 +425,7 @@ char* rv_disass_b(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_r(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_r(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t rd  = DEC_RD(inst);
@@ -461,7 +468,7 @@ char* rv_disass_r(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_s(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_s(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t imm = MAKE_SEXT_BITS(inst, 12) | (DEC_F7(inst) << 5) | DEC_RD(inst);
@@ -474,7 +481,7 @@ char* rv_disass_s(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_j(unsigned int inst, const OpInfo* info) {
+static char* rv_disass_j(unsigned int inst, const OpInfo* info) {
     char output[64] = {};
 
     uint32_t rd  = DEC_RD(inst);
@@ -502,11 +509,11 @@ char* rv_disass_j(unsigned int inst, const OpInfo* info) {
     return strdup(output);
 }
 
-char* rv_disass_none(unsigned int _dummy, const OpInfo* info) {
+static char* rv_disass_none(unsigned int _dummy, const OpInfo* info) {
     return strdup(info->name);
 }
 
-const char* rv_disass_impl(unsigned int inst) {
+static char* rv_disass_impl(unsigned int inst) {
     // Start with a naive search
     // We can choose better algorithms (bsearch, jump table) later.
     for (uint32_t i = 0; i < UncompressedInstsSize; i++) {
@@ -555,10 +562,11 @@ const char* rv_disass_impl(unsigned int inst) {
     }
     return strdup("unknown");
 }
-const char* rv_disass(int raw_inst) {
+
+DPI_DLLESPEC const char* rv_disass(int raw_inst) {
     uint32_t inst = (uint32_t)raw_inst;
-    static const char* last_char = NULL;
-    const char* disass = rv_disass_impl(inst);
+    static char* last_char = NULL;
+    char* disass = rv_disass_impl(inst);
 
     if (g_context.NotThreadSafe) {
         if (last_char != NULL) {
@@ -570,14 +578,14 @@ const char* rv_disass(int raw_inst) {
     return disass;
 }
 
-void rv_free(char* str) {
+DPI_DLLESPEC void rv_free(char* str) {
     if (!g_context.NotThreadSafe) {
         // If "not thread safe", we'll auto free on next disass.
         free(str);
     }
 }
 
-void rv_set_option(const char* str, bool enabled) {
+DPI_DLLESPEC void rv_set_option(const char* str, bool enabled) {
     if (strcmp(str, "UsePsuedoInsts") == 0) {
         g_context.UsePsuedoInsts = enabled;
     }
@@ -589,7 +597,7 @@ void rv_set_option(const char* str, bool enabled) {
     }
 }
 
-void rv_reset_options() {
+DPI_DLLESPEC void rv_reset_options() {
     memset(&g_context, 0, sizeof(g_context));
 #ifdef VIVADO
     g_context.NotThreadSafe = true;
