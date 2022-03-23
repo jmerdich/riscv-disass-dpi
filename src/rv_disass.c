@@ -525,7 +525,9 @@ DPI_DLLESPEC void rv_free(char* str) {
     }
 }
 
-DPI_DLLESPEC void rv_set_option(const char* str, bool enabled) {
+DPI_DLLESPEC void rv_set_option(const char* str, char enabled_in) {
+    bool enabled = (bool)enabled_in;
+
     if (strcmp(str, "UsePsuedoInsts") == 0) {
         g_context.UsePsuedoInsts = enabled;
     }

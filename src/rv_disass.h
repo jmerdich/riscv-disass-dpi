@@ -18,7 +18,7 @@ extern "C" {
 
 DPI_DLLISPEC char* rv_disass(unsigned int inst);
 DPI_DLLISPEC void rv_free(char* str);
-DPI_DLLISPEC void rv_set_option(const char* str, bool enabled);
+DPI_DLLISPEC void rv_set_option(const char* str, char enabled);
 DPI_DLLISPEC void rv_reset_options();
 
 #ifdef __cplusplus

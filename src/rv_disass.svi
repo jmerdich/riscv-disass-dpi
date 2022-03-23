@@ -1,0 +1,11 @@
+//  SPDX-FileCopyrightText: 2022 Jake Merdich <jake@merdich.com>
+//  SPDX-License-Identifier: Unlicense
+`ifndef RV_DISASS_H
+`define RV_DISASS_H
+
+import "DPI-C" function string rv_disass (input int inst);
+import "DPI-C" function void rv_free (input string asm);
+import "DPI-C" function void rv_set_option(input string str, input byte enabled);
+import "DPI-C" function void rv_reset_options();
+
+`endif // RV_DISASS_H

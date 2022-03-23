@@ -14,6 +14,6 @@ mkdir -p $WORKDIR
 cd $WORKDIR
 
 xsc --gcc_compile_options=-DVIVADO $ROOT/src/rv_disass.c
-xelab -vlog $TESTDIR/../simple_nop_check.sv -sv -sv_lib dpi -R
+xelab -vlog $TESTDIR/../simple_nop_check.sv -sv -i $ROOT/src -sv_lib dpi -R
 
 echo

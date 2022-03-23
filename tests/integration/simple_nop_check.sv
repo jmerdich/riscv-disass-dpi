@@ -1,8 +1,6 @@
+`include "rv_disass.svi"
+
 module simple_nop_check();
-
-import "DPI-C" function string rv_disass (input int inst);
-import "DPI-C" function void rv_free (input string asm);
-
 
 string s;
 integer i, j;
