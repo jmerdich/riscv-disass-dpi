@@ -9,6 +9,10 @@
 #include <stdio.h>
 #include <assert.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef DPI_DLLESPEC
 #ifdef _WIN32
 #define DPI_DLLESPEC __declspec(dllexport)
@@ -86,18 +90,14 @@
 typedef struct {
     bool  UsePsuedoInsts; // Emits known pseudo-opcodes instead of raw insts.
     bool  NoAbiNames;     // Always use register numbers rather than names
-    bool  NotThreadSafe;  // Disassembled outputs are freed on the next call
-                          // (horrible ugly nasty hack because some implementations don't
-                          // give you back the same string for free'ing)
+    bool  SimDoesCopy;    // Whether simulator makes a copy of returned strings.
+    bool  SimDoesFree;    // Whether simulator does the free'ing.
 } Context;
 Context g_context = {
     false,
     false,
-#ifdef VIVADO
     true,
-#else
-    false,
-#endif
+    false
 };
 
 
@@ -125,8 +125,8 @@ typedef struct {
     InstLayout  layout;
     uint32_t    pseudoInstFlags;
 } OpInfo;
-DPI_DLLESPEC const OpInfo UncompressedInsts[];
-DPI_DLLESPEC const uint32_t UncompressedInstsSize;
+DPI_DLLESPEC extern const OpInfo UncompressedInsts[];
+DPI_DLLESPEC extern const uint32_t UncompressedInstsSize;
 // End test interface
 
 DPI_DLLESPEC const OpInfo UncompressedInsts[] = {
@@ -224,7 +224,7 @@ static char* mprintf(const char* fmt, ...) {
         return NULL;
     }
 
-    char* outstr = malloc(len+1);
+    char* outstr = (char*)malloc(len+1);
     if (outstr != NULL) {
         va_list vargs2;
         va_start(vargs2, fmt);
@@ -508,7 +508,7 @@ DPI_DLLESPEC const char* rv_disass(int raw_inst) {
     static char* last_char = NULL;
     char* disass = rv_disass_impl(inst);
 
-    if (g_context.NotThreadSafe) {
+    if (g_context.SimDoesCopy) {
         if (last_char != NULL) {
             free(last_char);
         }
@@ -519,8 +519,16 @@ DPI_DLLESPEC const char* rv_disass(int raw_inst) {
 }
 
 DPI_DLLESPEC void rv_free(char* str) {
-    if (!g_context.NotThreadSafe) {
-        // If "not thread safe", we'll auto free on next disass.
+    if (!g_context.SimDoesFree && !g_context.SimDoesCopy) {
+        // The DPI memory model says that C shouldn't free SV strings and
+        // SV shouldn't free C strings... but most implementations make
+        // a copy of strings under the hood and don't pass the original
+        // string back, so I don't know how we're expected to know when
+        // it's safe to free in the off chance there's an implementation
+        // that doesn't make an immediate copy and free the underlying 
+        // string. 
+
+        // Seems like a spec bug to me.
         free(str);
     }
 }
@@ -534,14 +542,19 @@ DPI_DLLESPEC void rv_set_option(const char* str, char enabled_in) {
     if (strcmp(str, "NoAbiNames") == 0) {
         g_context.NoAbiNames = enabled;
     }
-    if (strcmp(str, "NotThreadSafe") == 0) {
-        g_context.NotThreadSafe = enabled;
+    if (strcmp(str, "SimDoesCopy") == 0) {
+        g_context.SimDoesCopy = enabled;
+    }
+    if (strcmp(str, "SimDoesFree") == 0) {
+        g_context.SimDoesFree = enabled;
     }
 }
 
 DPI_DLLESPEC void rv_reset_options() {
     memset(&g_context, 0, sizeof(g_context));
-#ifdef VIVADO
-    g_context.NotThreadSafe = true;
-#endif
+    g_context.SimDoesCopy = true;
 }
+
+#ifdef __cplusplus
+} // extern C
+#endif
