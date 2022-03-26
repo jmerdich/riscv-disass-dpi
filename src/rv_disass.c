@@ -91,6 +91,9 @@ typedef struct {
     bool  UsePsuedoInsts; // Emits known pseudo-opcodes instead of raw insts.
     bool  NoAbiNames;     // Always use register numbers rather than names
     bool  SimDoesCopy;    // Whether simulator makes a copy of returned strings.
+                          // Ie, Verilator, Vivado
+                          // When this is enabled, strings are free'd during the next
+                          // disass call.
     bool  SimDoesFree;    // Whether simulator does the free'ing.
 } Context;
 Context g_context = {
@@ -525,8 +528,7 @@ DPI_DLLESPEC void rv_free(char* str) {
         // a copy of strings under the hood and don't pass the original
         // string back, so I don't know how we're expected to know when
         // it's safe to free in the off chance there's an implementation
-        // that doesn't make an immediate copy and free the underlying 
-        // string. 
+        // that doesn't make an immediate copy.
 
         // Seems like a spec bug to me.
         free(str);
