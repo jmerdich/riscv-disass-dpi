@@ -2,6 +2,7 @@
 #include "verilated.h"
 
 int main(int argc, char** argv, char** env) {
+    (void)env;
 #if 0
     VerilatedContext* contextp = new VerilatedContext;
     contextp->commandArgs(argc, argv);
@@ -10,6 +11,7 @@ int main(int argc, char** argv, char** env) {
     delete top;
     delete contextp;
 #else
+    Verilated::commandArgs(argc, argv);
     Vsimple_nop_check* top = new Vsimple_nop_check{};
     while (!Verilated::gotFinish()) { top->eval(); }
     delete top;
