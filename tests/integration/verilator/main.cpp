@@ -4,6 +4,7 @@
 int main(int argc, char** argv, char** env) {
     (void)env;
 #if 0
+    // Verilator 4.200+ recommended code
     VerilatedContext* contextp = new VerilatedContext;
     contextp->commandArgs(argc, argv);
     Vsimple_nop_check* top = new Vsimple_nop_check{};
