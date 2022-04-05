@@ -24,7 +24,8 @@ Usage:
     
     // TODO: figure out the big gap in the DPI spec about who
     // is supposed to free a returned string. There are some
-    // hacks in there now.
+    // hacks in there now so it will 'just work' without an
+    // explicit free on most simulators.
     // rv_free(disass_output);
 
 ```
