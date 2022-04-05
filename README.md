@@ -8,14 +8,24 @@ debugging a RISC-V CPU you made!
 Setup:
 ------
 
-TBD after it's ready
+Varies by simulator, but in general you first compile this library (one file)
+and then specify that library in your command to simulate. Check `tests/integration`
+for some examples.
 
 
 Usage:
 -----
 
 ```systemverilog
-    // TBD after it's ready
+    `include "rv_disass.svi"
+    // ...
+    string disass_output = rv_disass(inst);
+    // ...
+    
+    // TODO: figure out the big gap in the DPI spec about who
+    // is supposed to free a returned string. There are some
+    // hacks in there now.
+    // rv_free(disass_output);
 
 ```
 
@@ -54,13 +64,13 @@ as are anything that requires reasoning about the program as a whole.
 
 ### How do I use this in (some-simulator)?
 
-Check our docs. If it's not there, chances are, I don't know! Especially for
+Check our examples. If it's not there, chances are, I don't know! Especially for
 commercial sims. But file an issue anyways and if I find some info or someone
-does find out, we can add it to our docs.
+does find out, we can add it.
 
 ### What about this custom extension I'm working on?
 
-(Future me will) have tried to provide an infrastructure to take info on
+Future me will try to provide an infrastructure to take info on
 additional custom instructions that you can keep as a separate header
 and compile flag-- you'll still be able to pull updates.
 
