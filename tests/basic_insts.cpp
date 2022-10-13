@@ -23,7 +23,7 @@ TEST(Rv32Basic, Fence) {
     ASSERT_DISASS(0x0c00000f, "fence   io, unknown"); // 0 = unknown
     ASSERT_DISASS(0x0ff0000f, "fence   iorw, iorw"); // equivalent to iorw,iorw
     ASSERT_DISASS(0x8330000f, "fence.tso rw, rw");
-    rv_set_option("UsePsuedoInsts", true);
+    rv_set_option("UsePseudoInsts", true);
     ASSERT_DISASS(0x0ff0000f, "fence"); // equivalent to iorw,iorw
     ASSERT_DISASS(0x8330000f, "fence.tso");
 }

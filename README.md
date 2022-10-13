@@ -60,7 +60,7 @@ its' disassembled form (particularly useful for traces and wave dumps).
 ### So it can disassemble.... anything in RISC-V?
 
 The goal is to disassemble any single instruction. Things that read multiple
-instructions (including some psuedoinstructions!) are explicitly out of scope,
+instructions (including some pseudoinstructions!) are explicitly out of scope,
 as are anything that requires reasoning about the program as a whole.
 
 ### How do I use this in (some-simulator)?

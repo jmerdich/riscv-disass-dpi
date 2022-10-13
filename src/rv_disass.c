@@ -21,7 +21,7 @@ extern "C" {
 #endif
 #endif
 
-// Psuedoinst flags (per InstLayout)
+// Pseudoinst flags (per InstLayout)
 #define PS_I_NOP  (1 << 0)
 #define PS_I_MV   (1 << 1)
 #define PS_I_NOT  (1 << 2)
@@ -88,7 +88,7 @@ extern "C" {
 #define MAKE_SEXT_BITS(inst, bits) (((int32_t)((inst) & 0x80000000)) >> (32 - bits))
 
 typedef struct {
-    bool  UsePsuedoInsts; // Emits known pseudo-opcodes instead of raw insts.
+    bool  UsePseudoInsts; // Emits known pseudo-opcodes instead of raw insts.
     bool  NoAbiNames;     // Always use register numbers rather than names
     bool  SimDoesCopy;    // Whether simulator makes a copy of returned strings.
                           // Ie, Verilator, Vivado
@@ -256,7 +256,7 @@ static char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     // Do sign extension of immediate
     imm |= MAKE_SEXT_BITS(inst, 12);
 
-    if (g_context.UsePsuedoInsts && info->pseudoInstFlags) {
+    if (g_context.UsePseudoInsts && info->pseudoInstFlags) {
         if ((info->pseudoInstFlags & PS_I_NOP) && (rd == 0) && (rs1 == 0) && (imm == 0)) {
             return rv_fmt_const("nop");
         }
@@ -293,7 +293,7 @@ static char* rv_disass_i_jump(unsigned int inst, const OpInfo* info) {
     // Do sign extension of immediate
     imm |= MAKE_SEXT_BITS(inst, 12);
 
-    if (g_context.UsePsuedoInsts) {
+    if (g_context.UsePseudoInsts) {
         if (rd == 0 && imm == 0 && rs1 == 1) {
             return rv_fmt_const("ret");
         } else if (rd == 0 && imm == 0) {
@@ -328,11 +328,11 @@ static char* rv_disass_i_fence(unsigned int inst, const OpInfo* info) {
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t fm = DEC_FM(inst);
 
-    if (g_context.UsePsuedoInsts && inst == 0x0ff0000f) {
+    if (g_context.UsePseudoInsts && inst == 0x0ff0000f) {
         return rv_fmt_const("fence");
     }
     if (inst == 0x8330000f) {
-        if (g_context.UsePsuedoInsts) {
+        if (g_context.UsePseudoInsts) {
             return rv_fmt_const("fence.tso");
         } else {
             return rv_fmt_const("fence.tso rw, rw");
@@ -386,7 +386,7 @@ static char* rv_disass_b(unsigned int inst, const OpInfo* info) {
     imm |= (inst & 0x7E000000) >> 20;
     imm |= MAKE_SEXT_BITS(inst, 13);
 
-    if (g_context.UsePsuedoInsts) {
+    if (g_context.UsePseudoInsts) {
         if (info->pseudoInstFlags & PS_B_BLEZ && rs1 == 0) {
             return rv_fmt_r_i("blez", rs2, imm);
         }
@@ -409,7 +409,7 @@ static char* rv_disass_r(unsigned int inst, const OpInfo* info) {
     uint32_t rs1 = DEC_RS1(inst);
     uint32_t rs2 = DEC_RS2(inst);
 
-    if (g_context.UsePsuedoInsts && info->pseudoInstFlags)
+    if (g_context.UsePseudoInsts && info->pseudoInstFlags)
     {
         if (info->pseudoInstFlags & PS_R_NEG && rs1 == 0) {
             return rv_fmt_r_r("neg", rd, rs2);
@@ -452,7 +452,7 @@ static char* rv_disass_j(unsigned int inst, const OpInfo* info) {
     imm |= ((raw_imm >> 19) & 0x1) << 20;
     imm |= MAKE_SEXT_BITS(inst, 21);
 
-    if (g_context.UsePsuedoInsts) {
+    if (g_context.UsePseudoInsts) {
         if (rd == 0) {
             return rv_fmt_i("j", imm);
         } else if (rd == 1) {
@@ -538,8 +538,8 @@ DPI_DLLESPEC void rv_free(char* str) {
 DPI_DLLESPEC void rv_set_option(const char* str, char enabled_in) {
     bool enabled = (bool)enabled_in;
 
-    if (strcmp(str, "UsePsuedoInsts") == 0) {
-        g_context.UsePsuedoInsts = enabled;
+    if (strcmp(str, "UsePseudoInsts") == 0) {
+        g_context.UsePseudoInsts = enabled;
     }
     if (strcmp(str, "NoAbiNames") == 0) {
         g_context.NoAbiNames = enabled;

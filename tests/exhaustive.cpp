@@ -190,7 +190,7 @@ uint32_t get_start_point() {
 
 TEST(LiterallyEverything, CompareToLlvm) {
     LLVMDisasmContextRef dis = GetLlvmDisassembler();
-    rv_set_option("UsePsuedoInsts", true);
+    rv_set_option("UsePseudoInsts", true);
     ExhaustiveThreadPool threads(get_start_point(), FullRangeEnd);
     threads.run([&](uint64_t inst) {
         std::string rv_inst = normalize_ws(rv_disass_str(inst));
