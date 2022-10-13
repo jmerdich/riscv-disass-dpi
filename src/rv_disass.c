@@ -508,7 +508,7 @@ static char* rv_disass_impl(unsigned int inst) {
 
 DPI_DLLESPEC const char* rv_disass(int raw_inst) {
     uint32_t inst = (uint32_t)raw_inst;
-    static char* last_char = NULL;
+    static _Thread_local char* last_char = NULL;
     char* disass = rv_disass_impl(inst);
 
     if (g_context.SimDoesCopy) {
