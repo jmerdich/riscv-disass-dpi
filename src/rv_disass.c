@@ -118,6 +118,8 @@ typedef enum {
     InstLayout_B,
     InstLayout_U,
     InstLayout_J,
+    InstLayout_Csr,
+    InstLayout_CsrImm,
     InstLayout_None,
 } InstLayout;
 
@@ -190,9 +192,35 @@ DPI_DLLESPEC const OpInfo UncompressedInsts[] = {
     {"sllw",  ENC_F7(0b0000000) | ENC_F3(0b001) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
     {"srlw",  ENC_F7(0b0000000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
     {"sraw",  ENC_F7(0b0100000) | ENC_F3(0b101) | ENC_OP(0b0111011), MASK_F7 | MASK_F3 | MASK_OP, InstLayout_R, 0},
+    // =========================================
+    // RVn Zicsr Standard Extension
+    {"csrrw",                     ENC_F3(0b001) | ENC_OP(0b1110011),           MASK_F3 | MASK_OP, InstLayout_Csr, 0},
+    {"csrrs",                     ENC_F3(0b010) | ENC_OP(0b1110011),           MASK_F3 | MASK_OP, InstLayout_Csr, 0},
+    {"csrrc",                     ENC_F3(0b011) | ENC_OP(0b1110011),           MASK_F3 | MASK_OP, InstLayout_Csr, 0},
+    {"csrrwi",                    ENC_F3(0b101) | ENC_OP(0b1110011),           MASK_F3 | MASK_OP, InstLayout_CsrImm, 0},
+    {"csrrsi",                    ENC_F3(0b110) | ENC_OP(0b1110011),           MASK_F3 | MASK_OP, InstLayout_CsrImm, 0},
+    {"csrrci",                    ENC_F3(0b111) | ENC_OP(0b1110011),           MASK_F3 | MASK_OP, InstLayout_CsrImm, 0},
 };
 
 DPI_DLLESPEC const uint32_t UncompressedInstsSize = sizeof(UncompressedInsts)/sizeof(UncompressedInsts[0]);
+
+typedef struct {
+    uint16_t    offset;
+    char        name[16];
+    uint8_t     csrFlags;
+} CsrInfo;
+const CsrInfo CsrInfos[] = {
+    {0x0301, "misa", 0},
+    {0x0c00, "mcycle", 0}, // TODO: psinst
+    {0x0c80, "mcycleh", 0}, // TODO: psinst
+    {0x0c02, "minstret", 0}, // TODO: psinst
+    {0x0c82, "minstreth", 0}, // TODO: psinst
+    {0x0f14, "mhartid", 0},
+    {0x0f13, "mimpid", 0},
+    {0x0f12, "marchid", 0},
+    {0x0f11, "mvendorid", 0},
+};
+DPI_DLLESPEC const uint32_t CsrInfosSize = sizeof(CsrInfos)/sizeof(CsrInfos[0]);
 
 static const char* get_abi_name(uint8_t reg) {
     if (g_context.NoAbiNames) {
@@ -239,14 +267,18 @@ static char* mprintf(const char* fmt, ...) {
 }
 
 #define rv_fmt_const(name) strdup((name))
-#define rv_fmt_i(inst, imm)              mprintf("%-7s %d",         (inst), (int32_t)(imm))
-#define rv_fmt_r(inst, r1)               mprintf("%-7s %s",         (inst), get_abi_name((r1)))
-#define rv_fmt_r_i(inst, r1, imm)        mprintf("%-7s %s, %d",     (inst), get_abi_name((r1)), (int32_t)(imm))
-#define rv_fmt_r_r(inst, r1, r2)         mprintf("%-7s %s, %s",     (inst), get_abi_name((r1)), get_abi_name((r2)))
-#define rv_fmt_r_r_i(inst, r1, r2, imm)  mprintf("%-7s %s, %s, %d", (inst), get_abi_name((r1)), get_abi_name((r2)), (int32_t)(imm))
-#define rv_fmt_r_r_r(inst, r1, r2, r3)   mprintf("%-7s %s, %s, %s", (inst), get_abi_name((r1)), get_abi_name((r2)), get_abi_name((r3)))
-#define rv_fmt_ir(inst, immr1, r1)       mprintf("%-7s %d(%s)",     (inst), (immr1), get_abi_name((r1)))
-#define rv_fmt_r_ir(inst, r1, immr2, r2) mprintf("%-7s %s, %d(%s)", (inst), get_abi_name((r1)), (immr2), get_abi_name((r2)))
+#define rv_fmt_i(inst, imm)              mprintf("%-7s %d",           (inst), (int32_t)(imm))
+#define rv_fmt_r(inst, r1)               mprintf("%-7s %s",           (inst), get_abi_name((r1)))
+#define rv_fmt_r_i(inst, r1, imm)        mprintf("%-7s %s, %d",       (inst), get_abi_name((r1)), (int32_t)(imm))
+#define rv_fmt_r_r(inst, r1, r2)         mprintf("%-7s %s, %s",       (inst), get_abi_name((r1)), get_abi_name((r2)))
+#define rv_fmt_r_r_i(inst, r1, r2, imm)  mprintf("%-7s %s, %s, %d",   (inst), get_abi_name((r1)), get_abi_name((r2)), (int32_t)(imm))
+#define rv_fmt_r_r_r(inst, r1, r2, r3)   mprintf("%-7s %s, %s, %s",   (inst), get_abi_name((r1)), get_abi_name((r2)), get_abi_name((r3)))
+#define rv_fmt_ir(inst, immr1, r1)       mprintf("%-7s %d(%s)",       (inst), (immr1), get_abi_name((r1)))
+#define rv_fmt_r_ir(inst, r1, immr2, r2) mprintf("%-7s %s, %d(%s)",   (inst), get_abi_name((r1)), (immr2), get_abi_name((r2)))
+#define rv_fmt_r_s_r(inst, r1, s, r2)    mprintf("%-7s %s, %s, %s",   (inst), get_abi_name((r1)), (s), get_abi_name((r2)))
+#define rv_fmt_r_h_r(inst, r1, h, r2)    mprintf("%-7s %s, 0x%x, %s", (inst), get_abi_name((r1)), (h), get_abi_name((r2)))
+#define rv_fmt_r_s_i(inst, r1, s, imm)   mprintf("%-7s %s, %s, %d",   (inst), get_abi_name((r1)), (s), (imm))
+#define rv_fmt_r_h_i(inst, r1, h, imm)   mprintf("%-7s %s, 0x%x, %d", (inst), get_abi_name((r1)), (h), (imm))
 
 static char* rv_disass_i(unsigned int inst, const OpInfo* info) {
     uint32_t rd = DEC_RD(inst);
@@ -432,6 +464,35 @@ static char* rv_disass_r(unsigned int inst, const OpInfo* info) {
     return rv_fmt_r_r_r(info->name, rd, rs1, rs2);
 }
 
+static char* rv_disass_csr(unsigned int inst, const OpInfo* info) {
+    uint32_t rd  = DEC_RD(inst);
+    uint32_t rs1 = DEC_RS1(inst);
+    uint32_t imm = DEC_I12(inst);
+
+    const char* csrName = NULL;
+    for (uint32_t i = 0; i < CsrInfosSize; i++)
+    {
+        if (CsrInfos[i].offset == imm) {
+            csrName = CsrInfos[i].name;
+            break;
+        }
+    }
+
+    if (info->layout == InstLayout_CsrImm) {
+        if (csrName != NULL) {
+            return rv_fmt_r_s_i(info->name, rd, csrName, rs1);
+        } else {
+            return rv_fmt_r_h_i(info->name, rd, imm, rs1);
+        }
+    } else {
+        if (csrName != NULL) {
+            return rv_fmt_r_s_r(info->name, rd, csrName, rs1);
+        } else {
+            return rv_fmt_r_h_r(info->name, rd, imm, rs1);
+        }
+    }
+}
+
 static char* rv_disass_s(unsigned int inst, const OpInfo* info) {
     uint32_t imm = MAKE_SEXT_BITS(inst, 12) | (DEC_F7(inst) << 5) | DEC_RD(inst);
     uint32_t rs1 = DEC_RS1(inst);
@@ -494,6 +555,9 @@ static char* rv_disass_impl(unsigned int inst) {
                     return rv_disass_r(inst, info);
                 case InstLayout_J:
                     return rv_disass_j(inst, info);
+                case InstLayout_Csr:
+                case InstLayout_CsrImm:
+                    return rv_disass_csr(inst, info);
                 case InstLayout_None:
                     return rv_disass_none(inst, info);
                 default:

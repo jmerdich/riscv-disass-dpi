@@ -28,6 +28,11 @@ TEST(Rv32Basic, Fence) {
     ASSERT_DISASS(0x8330000f, "fence.tso");
 }
 
+TEST(Rv32Basic, Csrs) {
+    rv_reset_options();
+    ASSERT_DISASS(0xC0002073, "csrrs   zero, mcycle, zero");
+}
+
 TEST(Rv32Basic, Special) {
     rv_reset_options();
     // ASSERT_DISASS(0x10500073, "wfi");
